@@ -1,0 +1,41 @@
+# Backend (Gradle)
+backend/.gradle/
+backend/build/
+backend/out/
+backend/bin/
+backend/.settings/
+backend/.classpath
+backend/.project
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

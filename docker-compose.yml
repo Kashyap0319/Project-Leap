@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  mongodb-logs:
+    image: mongo:7.0
+    container_name: project-leap-logs-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: project-leap-logs
+    volumes:
+      - mongodb-logs-data:/data/db
+    networks:
+      - project-leap-network
+
+  mongodb-metadata:
+    image: mongo:7.0
+    container_name: project-leap-metadata-db
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_DATABASE: project-leap-metadata
+    volumes:
+      - mongodb-metadata-data:/data/db
+    networks:
+      - project-leap-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: project-leap-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb-logs:27017/project-leap-logs
+      - MONGODB_METADATA_URI=mongodb://mongodb-metadata:27017/project-leap-metadata
+      - JWT_SECRET=change-this-secret-in-production-minimum-256-bits-required
+    depends_on:
+      - mongodb-logs
+      - mongodb-metadata
+    networks:
+      - project-leap-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: project-leap-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+    networks:
+      - project-leap-network
+
+volumes:
+  mongodb-logs-data:
+  mongodb-metadata-data:
+
+networks:
+  project-leap-network:
+    driver: bridge

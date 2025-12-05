@@ -6,6 +6,7 @@ backend/bin/
 backend/.settings/
 backend/.classpath
 backend/.project
+backend/gradle.zip
 
 # Frontend (Node)
 frontend/node_modules/

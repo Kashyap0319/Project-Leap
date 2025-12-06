@@ -1,0 +1,14 @@
+/build
+/.idea
+/.vscode
+/node_modules
+/.next
+/.next
+/node_modules
+**/node_modules
+/out
+*.iml
+.gradle
+**/build
+.env
+.env.local

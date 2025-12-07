@@ -24,10 +24,12 @@ export default function LogsPage() {
   const [interval, setIntervalMs] = useState(15000);
   const [filters, setFilters] = useState({
     search: "",
+      endpoint: "",
     service: "",
     status: "",
     errorsOnly: false,
     slowOnly: false,
+      rateLimitedOnly: false,
     range: "24h",
   });
 
@@ -38,10 +40,12 @@ export default function LogsPage() {
         page,
         size: DEFAULT_PAGE_SIZE,
         q: filters.search || undefined,
+        endpoint: filters.endpoint || undefined,
         service: filters.service || undefined,
         status: filters.status || undefined,
         slow: filters.slowOnly || undefined,
         errorsOnly: filters.errorsOnly || undefined,
+        rateLimited: filters.rateLimitedOnly || undefined,
         window: filters.range,
       };
       const data = await fetchLogs(params);
@@ -92,6 +96,11 @@ export default function LogsPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
               />
             </div>
+            <Input
+              placeholder="Endpoint path (e.g. /api/orders)"
+              value={filters.endpoint}
+              onChange={(e) => setFilters((f) => ({ ...f, endpoint: e.target.value }))}
+            />
             <Input placeholder="Service name" value={filters.service} onChange={(e) => setFilters((f) => ({ ...f, service: e.target.value }))} />
             <select
               className="h-11 rounded-md border border-input bg-background px-3 text-sm"
@@ -119,6 +128,9 @@ export default function LogsPage() {
             </FilterChip>
             <FilterChip active={filters.slowOnly} onClick={() => setFilters((f) => ({ ...f, slowOnly: !f.slowOnly }))}>
               Slow APIs only
+            </FilterChip>
+            <FilterChip active={filters.rateLimitedOnly} onClick={() => setFilters((f) => ({ ...f, rateLimitedOnly: !f.rateLimitedOnly }))}>
+              Rate-limit hits
             </FilterChip>
             <Button variant="outline" size="sm" onClick={() => setFilters({ search: "", service: "", status: "", errorsOnly: false, slowOnly: false, range: "24h" })}>
               Clear

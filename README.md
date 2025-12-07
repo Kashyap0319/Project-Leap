@@ -3,7 +3,7 @@
 ## Architecture
 - **Collector Service (Spring Boot + Kotlin)**
   - Receives batched `LogEvent` payloads over REST at `/api/logs/batch`.
-  - Dual Mongo setup: `logs` database for raw traffic, `meta` database for users, rate-limit overrides, alerts, and incidents.
+  - Dual Mongo setup: `logs` database for raw traffic, `meta` database for users, rate-limit overrides, alerts, and incidents. Provide separate URIs via `LOGS_MONGO_URI` and `META_MONGO_URI` (can point to different Mongo instances/clusters to satisfy “two separate databases” requirement).
   - JWT-authenticated APIs: alerts, incidents (with optimistic locking), rate-limit overrides, service analytics.
   - Alert rules: latency > 500ms, status 5xx, or rate-limit hit. Each alert also bumps/create an incident record.
 - **Tracker Library (Spring Boot starter, Kotlin)**

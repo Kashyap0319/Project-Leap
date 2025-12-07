@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.core.query.Update
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.stereotype.Service
 import java.time.Instant
 
@@ -19,6 +20,7 @@ class IncidentService(
     @Qualifier("metaTemplate") private val metaTemplate: MongoTemplate
 ) {
 
+    @Transactional("metaTxManager")
     fun touchIncident(alert: AlertDocument) {
         val query = Query(
             Criteria.where("service").`is`(alert.service)
@@ -38,6 +40,7 @@ class IncidentService(
         metaTemplate.findAndModify(query, update, FindAndModifyOptions.options().upsert(true).returnNew(true), IncidentDocument::class.java)
     }
 
+    @Transactional("metaTxManager")
     fun resolve(id: String, expectedVersion: Long): Incident {
         val query = Query(
             Criteria.where("_id").`is`(id)

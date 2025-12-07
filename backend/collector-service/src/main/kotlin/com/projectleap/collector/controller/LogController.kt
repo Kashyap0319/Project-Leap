@@ -25,12 +25,17 @@ class LogController(
     fun query(
         @RequestParam(required = false) service: String?,
         @RequestParam(required = false) endpoint: String?,
-        @RequestParam(required = false) status: Int?,
+        @RequestParam(required = false) status: String?,
         @RequestParam(required = false, name = "slow") slow: Boolean?,
         @RequestParam(required = false, name = "broken") broken: Boolean?,
         @RequestParam(required = false, name = "rateLimited") rateLimited: Boolean?,
+        @RequestParam(required = false, name = "errorsOnly") errorsOnly: Boolean?,
         @RequestParam(required = false, name = "startTs") startTs: Long?,
-        @RequestParam(required = false, name = "endTs") endTs: Long?
+        @RequestParam(required = false, name = "endTs") endTs: Long?,
+        @RequestParam(required = false, name = "q") q: String?,
+        @RequestParam(required = false, name = "window") window: String?,
+        @RequestParam(required = false, name = "page", defaultValue = "0") page: Int,
+        @RequestParam(required = false, name = "size", defaultValue = "50") size: Int
     ): List<LogDocument> =
-        logIngestService.query(service, endpoint, status, slow, broken, rateLimited, startTs, endTs)
+        logIngestService.query(service, endpoint, status, slow, broken, rateLimited, errorsOnly, startTs, endTs, q, window, page, size)
 }

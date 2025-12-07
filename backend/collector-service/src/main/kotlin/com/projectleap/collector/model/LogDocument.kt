@@ -1,7 +1,9 @@
 package com.projectleap.collector.model
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document
+import org.springframework.data.mongodb.core.mapping.Field
 
 @Document("logs")
 data class LogDocument(
@@ -14,6 +16,10 @@ data class LogDocument(
     val rateLimited: Boolean,
     val timestamp: Long,
     val requestId: String? = null,
-    val requestBytes: Long? = null,
-    val responseBytes: Long? = null
+    @Field("requestBytes")
+    @JsonProperty("requestSizeBytes")
+    val requestSizeBytes: Long? = null,
+    @Field("responseBytes")
+    @JsonProperty("responseSizeBytes")
+    val responseSizeBytes: Long? = null
 )

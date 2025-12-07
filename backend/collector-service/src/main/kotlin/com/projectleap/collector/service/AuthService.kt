@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.stereotype.Service
 import java.lang.IllegalArgumentException
 
@@ -19,6 +20,7 @@ class AuthService(
 ) {
     data class AuthResponse(val token: String)
 
+    @Transactional("metaTxManager")
     fun signup(username: String, password: String): AuthResponse {
         if (username.isBlank() || password.isBlank()) throw IllegalArgumentException("Username/password required")
         val hash = passwordEncoder.encode(password)

@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
 import org.springframework.data.mongodb.core.query.Update
 import org.springframework.http.ResponseEntity
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -20,6 +21,7 @@ class RateLimitController(
     fun list(): List<RateLimitConfigDocument> = metaTemplate.find(Query(), RateLimitConfigDocument::class.java)
 
     @PostMapping
+    @Transactional("metaTxManager")
     fun upsert(@RequestBody req: UpsertRequest): ResponseEntity<RateLimitConfigDocument> {
         val query = Query(Criteria.where("service").`is`(req.service))
         val update = Update()

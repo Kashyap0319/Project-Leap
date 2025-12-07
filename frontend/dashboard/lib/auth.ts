@@ -1,94 +1,105 @@
 "use client";
 
 import axios from "axios";
-import { setToken, api } from "./api";
+import { jwtDecode } from "jwt-decode";
+import { api } from "./api";
+import { clearSession, getSession, getToken, isExpired, setSession, upsertUser } from "./session";
 
-function persistSession(username: string, token: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("leap.session", JSON.stringify({ username, token }));
+
+export type AuthUser = {
+  email: string;
+  fullName?: string;
+  avatarInitials?: string;
+  city?: string;
+  country?: string;
+  lastLoginAt?: string;
+};
+
+type AuthResponse = {
+  token: string;
+  user?: AuthUser;
+};
+
+function formatError(err: unknown) {
+  if (axios.isAxiosError(err)) {
+    return (
+      (err.response?.data as { message?: string } | undefined)?.message ||
+      err.response?.statusText ||
+      "Authentication failed"
+    );
+  }
+  return err instanceof Error ? err.message : "Authentication failed";
 }
 
-async function authenticate(path: string, username: string, password: string): Promise<string> {
-  const payload = {
-    username: username.trim(),
-    password: password.trim(),
-  };
-  if (!payload.username || !payload.password) {
-    throw new Error("Username and password required");
+async function authenticate(path: string, body: Record<string, string>): Promise<AuthResponse> {
+  const clean = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v.trim()])) as Record<string, string>;
+  if (!clean.email || !clean.password) {
+    throw new Error("Email and password are required");
   }
   try {
-    const { data } = await api.post<{ token: string }>(path, payload);
-    const token = data.token;
-    setToken(token);
-    persistSession(payload.username, token);
-    return token;
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      const message = (err.response?.data as { message?: string } | undefined)?.message;
-      throw new Error(message || "Authentication failed");
+    const payload = { username: clean.email, password: clean.password, fullName: clean.fullName } as Record<string, string>;
+    const { data } = await api.post<AuthResponse>(path, payload);
+    if (!data.token) {
+      throw new Error("Token missing in response");
     }
-    throw new Error("Authentication failed");
+    setSession(data.token, data.user ? { email: data.user.email, name: data.user.fullName } : { email: clean.email });
+    return data;
+  } catch (err) {
+    throw new Error(formatError(err));
   }
 }
 
-export async function login(username: string, password: string): Promise<string> {
-  return authenticate("/auth/login", username, password);
+export async function login(email: string, password: string) {
+  return authenticate("/auth/login", { email, password });
 }
 
-export async function signup(username: string, password: string): Promise<string> {
-  return authenticate("/auth/signup", username, password);
+export async function signup(fullName: string, email: string, password: string) {
+  return authenticate("/auth/signup", { fullName, email, password });
+}
+
+export async function fetchMe(): Promise<AuthUser> {
+  const token = getToken();
+  if (!token) throw new Error("Not authenticated");
+  try {
+    const decoded = jwtDecode<{ sub?: string; email?: string }>(token);
+    const email = decoded.email || decoded.sub;
+    if (!email) throw new Error("User info missing in token");
+    const user: AuthUser = { email, fullName: decoded.email };
+    upsertUser({ email, name: decoded.email });
+    return user;
+  } catch (err) {
+    throw new Error(formatError(err));
+  }
+}
+
+export function requireAuth(): string | null {
+  if (typeof window === "undefined") return null;
+  const session = getSession();
+  if (!session) return null;
+  if (isExpired(session.token)) {
+    clearSession();
+    return null;
+  }
+  return session.token;
+}
+
+export function currentUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  const session = getSession();
+  if (!session?.user) return null;
+  return {
+    email: session.user.email,
+    fullName: session.user.name,
+    avatarInitials: session.user.name
+      ? session.user.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+      : session.user.email?.slice(0, 2).toUpperCase(),
+  };
 }
 
 export function logout() {
-  setToken(null);
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("token");
-    localStorage.removeItem("leap.session");
-  }
-}
-
-export function requireAuth() {
-  if (typeof window === "undefined") return null;
-  const legacy = localStorage.getItem("token");
-  const sessionRaw = localStorage.getItem("leap.session");
-  let token: string | null = null;
-  if (sessionRaw) {
-    try {
-      const parsed = JSON.parse(sessionRaw);
-      token = parsed.token;
-    } catch {
-      token = null;
-    }
-  } else if (legacy) {
-    token = legacy;
-  }
-  if (token) setToken(token);
-  return token;
-}
-
-export function currentUser(): string | null {
-  if (typeof window === "undefined") return null;
-  const sessionRaw = localStorage.getItem("leap.session");
-  if (!sessionRaw) return null;
-  try {
-    const parsed = JSON.parse(sessionRaw);
-    return parsed.username as string;
-  } catch {
-    return null;
-  }
-}
-
-export async function fetchLogs(params: Record<string, any>) {
-  const res = await api.get("/api/logs", { params });
-  return res.data;
-}
-
-export async function fetchIncidents() {
-  const res = await api.get("/api/incidents");
-  return res.data;
-}
-
-export async function resolveIncident(id: string, version: number) {
-  const res = await api.post(`/api/incidents/${id}/resolve`, { version });
-  return res.data;
+  clearSession();
 }

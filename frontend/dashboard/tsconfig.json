@@ -19,7 +19,10 @@
     "jsx": "preserve",
     "incremental": true,
     "types": [
-      "node"
+      "node",
+      "next",
+      "next/types/global",
+      "next/image-types/global"
     ],
     "plugins": [
       {

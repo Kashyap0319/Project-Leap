@@ -1,271 +1,584 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { fetchLogs, fetchIncidents, resolveIncident, logout, currentUser, requireAuth } from "../../lib/auth";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pie, PieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { AlertCircle, ArrowRight, Clock4, Flame, Gauge, Loader2, MapPin, ShieldCheck, Volume2, VolumeX } from "lucide-react";
+import { toast } from "sonner";
+import { fetchAlerts, fetchIncidents, fetchLogs, fetchServices, resolveIncident } from "../../lib/data";
+import { currentUser, fetchMe } from "../../lib/auth";
+import { useAutoRefresh } from "../../lib/hooks/useAutoRefresh";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { AutoRefreshControl } from "../../components/common/auto-refresh-control";
+import { Skeleton } from "../../components/ui/skeleton";
 
-type Log = {
-  service: string;
-  endpoint: string;
-  status: number;
-  latencyMs: number;
-  rateLimited: boolean;
-  timestamp: number;
-};
-
-type Incident = {
-  id: string;
-  service: string;
-  endpoint: string;
-  type: string;
-  status: string;
-  firstSeen: number;
-  lastSeen: number;
-  occurrences: number;
-  severity: string;
-  version: number;
-};
-
-const statuses = [200, 400, 401, 403, 404, 429, 500, 502, 503];
+const REFRESH_DEFAULT = 15000;
+const COLORS = ["#4ade80", "#f87171"];
 
 export default function Dashboard() {
-  const [logs, setLogs] = useState<Log[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    service: "",
-    endpoint: "",
-    status: "",
-    slow: false,
-    broken: false,
-    rateLimited: undefined as boolean | undefined,
-  });
+  const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [interval, setIntervalMs] = useState(REFRESH_DEFAULT);
+  const [logs, setLogs] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [incidents, setIncidents] = useState([]);
+  const [services, setServices] = useState([]);
+  const [user, setUser] = useState(null as any);
+  const [muteAlerts, setMuteAlerts] = useState(false);
+  const [liveAsc, setLiveAsc] = useState(false);
+  const [serviceFilter, setServiceFilter] = useState("all");
+  const [methodFilter, setMethodFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [mounted, setMounted] = useState(false);
+  const lastAlertIds = useRef<Set<string>>(new Set());
+  const lastChimeAt = useRef<number>(0);
 
-  const load = async () => {
-    try {
-      setLoadError(null);
-      const data = await fetchLogs({
-        service: filters.service || undefined,
-        endpoint: filters.endpoint || undefined,
-        status: filters.status ? Number(filters.status) : undefined,
-        slow: filters.slow || undefined,
-        broken: filters.broken || undefined,
-        rateLimited: filters.rateLimited,
-      });
-      setLogs(data);
-      const inc = await fetchIncidents();
-      setIncidents(inc);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load data";
-      setLoadError(message);
-    }
-  };
+  // Keep live traffic stable and time-ordered (newest first) for the table.
+  const liveLogs = useMemo(() => {
+    const sorted = [...(logs as any[])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return liveAsc ? [...sorted].reverse() : sorted;
+  }, [logs, liveAsc]);
 
-  useEffect(() => {
-    requireAuth();
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const filteredLogs = useMemo(() => {
+    return liveLogs.filter((log: any) => {
+      const serviceOk = serviceFilter === "all" || log.service === serviceFilter;
+      const methodOk = methodFilter === "all" || (log.method || "").toUpperCase() === methodFilter;
+      const statusOk =
+        statusFilter === "all" ||
+        (statusFilter === "2xx" && log.status >= 200 && log.status < 300) ||
+        (statusFilter === "4xx" && log.status >= 400 && log.status < 500) ||
+        (statusFilter === "5xx" && log.status >= 500);
+      return serviceOk && methodOk && statusOk;
+    });
+  }, [liveLogs, methodFilter, serviceFilter, statusFilter]);
 
-  const analytics = useMemo(() => {
-    const slow = logs.filter((l) => l.latencyMs > 500).length;
-    const broken = logs.filter((l) => l.status >= 500).length;
-    const rate = logs.filter((l) => l.rateLimited).length;
-    const byEndpoint = logs.reduce<Record<string, { sum: number; count: number }>>((acc, l) => {
-      acc[l.endpoint] = acc[l.endpoint] || { sum: 0, count: 0 };
-      acc[l.endpoint].sum += l.latencyMs;
-      acc[l.endpoint].count += 1;
-      return acc;
-    }, {});
-    const avgLatency = Object.entries(byEndpoint).map(([ep, v]) => ({ endpoint: ep, avg: v.sum / v.count }));
-    const topSlow = [...avgLatency].sort((a, b) => b.avg - a.avg).slice(0, 5);
-    const trend = logs.map((l) => ({ t: l.timestamp, err: l.status >= 500 ? 1 : 0 }));
-    return { slow, broken, rate, avgLatency, topSlow, trend };
+  const availableServices = useMemo(() => {
+    const names = new Set<string>();
+    (logs as any[]).forEach((l) => names.add(l.service));
+    return Array.from(names).filter(Boolean).sort();
   }, [logs]);
 
-  const applyFilters = async () => {
-    await load();
-  };
+  const availableMethods = useMemo(() => {
+    const methods = new Set<string>();
+    (logs as any[]).forEach((l) => methods.add((l.method || "").toUpperCase()));
+    methods.delete("");
+    return Array.from(methods).sort();
+  }, [logs]);
 
-  const onResolve = async (inc: Incident) => {
+  const copyCurl = useCallback(async (log: any) => {
+    const target = log.url || log.endpoint || "/";
+    const url = typeof target === "string" && target.startsWith("http") ? target : `https://api.example.com${target}`;
+    const cmd = `curl -X ${log.method || "GET"} "${url}"`;
     try {
-      await resolveIncident(inc.id, inc.version);
+      await navigator.clipboard.writeText(cmd);
+      toast.success("Copied cURL", { description: cmd });
+    } catch (err) {
+      toast.error("Copy failed");
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [logData, alertData, incidentData, serviceData, me] = await Promise.all([
+        fetchLogs({ size: 200 }),
+        fetchAlerts(),
+        fetchIncidents(),
+        fetchServices(),
+        fetchMe().catch(() => null),
+      ]);
+      setLogs(logData as any);
+      setAlerts(alertData as any);
+      setIncidents(incidentData as any);
+      setServices(serviceData as any);
+      setUser(me || currentUser());
+
+      const incomingIds = new Set((alertData as any[]).map((a) => a.id));
+      const prev = lastAlertIds.current;
+      const newOnes = [...incomingIds].filter((id) => !prev.has(id));
+      if (newOnes.length > 0 && prev.size > 0) {
+        toast.warning("⚠️ New alert detected", { description: `${newOnes.length} new alert(s) arrived.` });
+        const now = Date.now();
+        if (!muteAlerts && now - lastChimeAt.current > 5000) {
+          playChime();
+          lastChimeAt.current = now;
+        }
+      }
+      lastAlertIds.current = incomingIds;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load dashboard data";
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [muteAlerts]);
+
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("muteAlerts") : null;
+    if (stored) setMuteAlerts(stored === "true");
+    const storedSort = typeof window !== "undefined" ? localStorage.getItem("liveSortAsc") : null;
+    if (storedSort) setLiveAsc(storedSort === "true");
+    const onMuteChange = (event: CustomEvent<boolean>) => setMuteAlerts(event.detail);
+    window.addEventListener("mute-alerts-changed", onMuteChange as EventListener);
+    setMounted(true);
+    load();
+    return () => window.removeEventListener("mute-alerts-changed", onMuteChange as EventListener);
+  }, [load]);
+
+  useAutoRefresh(autoRefresh, interval, load);
+
+  const summary = useMemo(() => {
+    const slow = (logs as any[]).filter((l) => l.latencyMs > 500).length;
+    const broken = (logs as any[]).filter((l) => l.status >= 500).length;
+    const rate = (logs as any[]).filter((l) => l.rateLimited || l.status === 429).length;
+    const success = (logs as any[]).filter((l) => l.status < 400).length;
+    const total = (logs as any[]).length || 1;
+    const error = total - success;
+
+    const byEndpoint: Record<string, { sum: number; count: number }> = {};
+    (logs as any[]).forEach((l) => {
+      const key = `${l.method || ""} ${l.endpoint}`;
+      byEndpoint[key] = byEndpoint[key] || { sum: 0, count: 0 };
+      byEndpoint[key].sum += l.latencyMs || 0;
+      byEndpoint[key].count += 1;
+    });
+    const topSlow = Object.entries(byEndpoint)
+      .map(([endpoint, value]) => ({ endpoint, avg: value.sum / value.count }))
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, 5);
+
+    return { slow, broken, rate, success, error, topSlow, total };
+  }, [logs]);
+
+  const errorRateSeries = useMemo(() => {
+    const buckets: Record<string, { errors: number; total: number }> = {};
+    (logs as any[]).forEach((l: any) => {
+      const bucket = new Date(l.timestamp).setMinutes(new Date(l.timestamp).getMinutes(), 0, 0).toString();
+      buckets[bucket] = buckets[bucket] || { errors: 0, total: 0 };
+      buckets[bucket].total += 1;
+      if (l.status >= 500) buckets[bucket].errors += 1;
+    });
+    return Object.entries(buckets)
+      .map(([k, v]) => ({ timestamp: Number(k), errorRate: v.total > 0 ? (v.errors / v.total) * 100 : 0 }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+  }, [logs]);
+
+  const avgLatencyPerEndpoint = useMemo(() => {
+    const byEndpoint: Record<string, { sum: number; count: number; method: string }> = {};
+    (logs as any[]).forEach((l: any) => {
+      const key = `${l.method || ""} ${l.endpoint}`;
+      byEndpoint[key] = byEndpoint[key] || { sum: 0, count: 0, method: l.method };
+      byEndpoint[key].sum += l.latencyMs || 0;
+      byEndpoint[key].count += 1;
+    });
+    return Object.entries(byEndpoint)
+      .map(([endpoint, value]) => ({ endpoint, avg: value.sum / value.count }))
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, 10);
+  }, [logs]);
+
+  const serviceKpis = useMemo(() => (services as any[]).slice(0, 4), [services]);
+
+  const resolve = async (incident: any) => {
+    try {
+      await resolveIncident(incident.id, incident.version);
+      toast.success("Incident resolved 👍");
       await load();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to resolve incident";
-      setLoadError(message);
+      toast.error(message);
     }
   };
 
   return (
-    <div className="page-shell">
-      <div className="glass-panel top-bar">
-        <div className="brand">
-          <div className="brand-mark" />
+    <div className="space-y-4">
+      <header className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-gradient-to-br from-primary/10 via-secondary/10 to-background p-6 shadow-lg shadow-primary/10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="brand-title">Project Leap · API Pulse</div>
-            <div className="muted" style={{ fontSize: 13 }}>Real-time reliability cockpit</div>
+            <p className="text-sm text-muted-foreground">Welcome to Leap API Center 🚀</p>
+            <h1 className="text-2xl font-bold">API Monitoring Made Smart</h1>
+            {user && (
+              <p className="text-sm text-muted-foreground">
+                Logged in as {user.fullName || user.email} · {user.email} · Location: {user.city || "Unknown"}, {user.country || "Unknown"} 🌍
+              </p>
+            )}
           </div>
+          <AutoRefreshControl
+            enabled={autoRefresh}
+            interval={interval}
+            onToggle={setAutoRefresh}
+            onIntervalChange={setIntervalMs}
+          />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {currentUser() && <div className="pill">Hi, {currentUser()}</div>}
-          <button className="btn secondary" onClick={() => { logout(); window.location.href = "/login"; }}>Logout</button>
-          <div className="pill">Live · {new Date().toLocaleTimeString()}</div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          <Badge variant="outline" className="gap-2">
+            <Clock4 className="h-3.5 w-3.5" /> Last login {user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "-"}
+          </Badge>
+          <Badge variant="success" className="gap-2">
+            <ShieldCheck className="h-3.5 w-3.5" /> Protected route
+          </Badge>
+          <Button
+            size="sm"
+            variant={muteAlerts ? "outline" : "secondary"}
+            className="gap-2"
+            onClick={() => setMuteAlerts((v) => !v)}
+          >
+            {muteAlerts ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+            {muteAlerts ? "Sound off" : "Sound on"}
+          </Button>
         </div>
-      </div>
+      </header>
 
-      {loadError && (
-        <div className="glass-panel" style={{ marginTop: 16, border: "1px solid var(--danger)", color: "var(--danger)" }}>
-          <strong>API error:</strong> {loadError}
-        </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Slow APIs" value={summary.slow} icon={<Gauge className="h-5 w-5 text-amber-400" />} helper="> 500ms" loading={loading} />
+        <MetricCard label="Broken APIs" value={summary.broken} icon={<Flame className="h-5 w-5 text-destructive" />} helper="5xx responses" loading={loading} />
+        <MetricCard label="Rate limit hits" value={summary.rate} icon={<AlertCircle className="h-5 w-5 text-primary" />} helper="HTTP 429" loading={loading} />
+        <MetricCard label="APIs monitored" value={summary.total} icon={<MapPin className="h-5 w-5 text-emerald-300" />} helper="Live" loading={loading} />
+      </section>
+
+      {serviceKpis.length > 0 && (
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {serviceKpis.map((svc: any) => (
+            <Card key={svc.name}>
+              <CardHeader>
+                <CardTitle className="text-base">{svc.name}</CardTitle>
+                <CardDescription>{svc.requests} reqs · {(svc.errorRate * 100).toFixed(2)}% errors</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between"><span>Avg latency</span><span className="font-semibold text-foreground">{svc.avgLatency.toFixed(1)} ms</span></div>
+                <div className="flex items-center justify-between"><span>Error rate</span><Badge variant={svc.errorRate > 0.05 ? "destructive" : "success"}>{(svc.errorRate * 100).toFixed(2)}%</Badge></div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
       )}
 
-      <section className="hero">
-        <h1>Service health at a glance</h1>
-        <p>Track latency, failures, rate limits, and incidents in one sleek cockpit. Apply filters and resolve noise quickly.</p>
+      <section className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <div>
+              <CardTitle>Success vs Error</CardTitle>
+              <CardDescription>Distribution of request outcomes.</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="h-64 w-full">
+              {loading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "Success", value: summary.success },
+                        { name: "Error", value: summary.error },
+                      ]}
+                      dataKey="value"
+                      innerRadius={55}
+                      outerRadius={90}
+                    >
+                      {[0, 1].map((i) => (
+                        <Cell key={i} fill={COLORS[i]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div className="space-y-3 rounded-xl border border-border/60 bg-card/60 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Success</span>
+                <Badge variant="success">{summary.success}</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Errors</span>
+                <Badge variant="destructive">{summary.error}</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Total</span>
+                <Badge variant="outline">{summary.total}</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 slow endpoints</CardTitle>
+            <CardDescription>Average latency per endpoint</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-60 w-full">
+              {loading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={summary.topSlow} layout="vertical" margin={{ left: 0 }}>
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="endpoint" type="category" width={120} tick={{ fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: "hsl(var(--border))" }} />
+                    <Bar dataKey="avg" fill="#38bdf8" radius={[6, 6, 6, 6]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
-      <section className="metrics-grid">
-        <div className="glass-panel metric-card">
-          <div className="metric-label">Slow API count</div>
-          <div className="metric-value">{analytics.slow}</div>
-          <div className="metric-trend">Threshold &gt; 500ms</div>
-        </div>
-        <div className="glass-panel metric-card">
-          <div className="metric-label">Broken API count</div>
-          <div className="metric-value" style={{ color: analytics.broken ? "var(--danger)" : undefined }}>{analytics.broken}</div>
-          <div className="metric-trend">5xx responses</div>
-        </div>
-        <div className="glass-panel metric-card">
-          <div className="metric-label">Rate-limit violations</div>
-          <div className="metric-value">{analytics.rate}</div>
-          <div className="metric-trend">HTTP 429 detections</div>
-        </div>
+      {mounted && (
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Error rate trend</CardTitle>
+            <CardDescription>Errors as a percentage of total requests.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-72">
+            {loading ? (
+              <Skeleton className="h-full w-full" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={errorRateSeries}>
+                  <XAxis dataKey="timestamp" tickFormatter={(v) => new Date(v).toLocaleTimeString()} />
+                  <YAxis unit="%" allowDecimals={false} domain={[0, 100]} />
+                  <Tooltip labelFormatter={(v) => new Date(v as number).toLocaleString()} formatter={(v: number) => `${v.toFixed(1)}%`} />
+                  <Bar dataKey="errorRate" fill="#f97316" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Avg latency by endpoint</CardTitle>
+            <CardDescription>Top 10 endpoints by average latency.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Endpoint</TableHead>
+                    <TableHead scope="col">Avg</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {avgLatencyPerEndpoint.map((row) => (
+                    <TableRow key={row.endpoint}>
+                      <TableCell>{row.endpoint}</TableCell>
+                      <TableCell>{row.avg.toFixed(1)} ms</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </section>
+      )}
 
-      <section className="card-grid">
-        <div className="glass-panel card">
-          <h3>Latency by endpoint</h3>
-          <div className="trend-list">
-            {analytics.avgLatency.map((x) => (
-              <div key={x.endpoint} className="trend-item">
-                <div style={{ color: "var(--text)", fontWeight: 600 }}>{x.endpoint}</div>
-                <div>{x.avg.toFixed(1)} ms avg</div>
-              </div>
-            ))}
-          </div>
-          <h3 style={{ marginTop: 14 }}>Top 5 slowest</h3>
-          <div className="trend-list">
-            {analytics.topSlow.map((x) => (
-              <div key={x.endpoint} className="trend-item">
-                <div style={{ color: "var(--text)", fontWeight: 600 }}>{x.endpoint}</div>
-                <div>{x.avg.toFixed(1)} ms</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="glass-panel card">
-          <h3>Incidents</h3>
-          <div className="incidents">
-            {incidents.map((inc) => (
-              <div key={inc.id} className="incident-row">
-                <div className="incident-meta">
-                  <strong>{inc.service}{inc.endpoint}</strong>
-                  <span className="muted">{inc.type} · v{inc.version}</span>
-                  <div className={`status-chip ${inc.status === "OPEN" ? "status-open" : "status-resolved"}`}>
-                    <span>{inc.status === "OPEN" ? "Open" : "Resolved"}</span>
-                    <span className="muted">{new Date(inc.lastSeen).toLocaleTimeString()}</span>
+      {mounted && (
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent alerts</CardTitle>
+            <CardDescription>Sorted by newest first</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
+              (alerts as any[]).map((alert) => (
+                <div key={alert.id} className="flex items-start justify-between rounded-xl border border-border/60 bg-card/70 p-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <Badge variant={((alert.severity || "").toString().toLowerCase() === "critical") ? "destructive" : ((alert.severity || "").toString().toLowerCase() === "high") ? "warning" : "outline"}>
+                        {(alert.severity || "").toString().toUpperCase()}
+                      </Badge>
+                      <span>{alert.service} · {alert.endpoint}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{alert.message}</p>
+                    <p className="text-xs text-muted-foreground">{new Date(alert.detectedAt || alert.triggeredAt).toLocaleString()}</p>
                   </div>
+                  {!alert.resolved && <Badge variant="destructive">Open</Badge>}
                 </div>
-                {inc.status === "OPEN" ? (
-                  <button className="btn" style={{ padding: "8px 12px" }} onClick={() => onResolve(inc)}>Resolve</button>
-                ) : (
-                  <span className="badge">Closed</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Incidents</CardTitle>
+            <CardDescription>Resolve incidents optimistically</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
+              (incidents as any[]).map((incident) => (
+                <div key={incident.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-card/70 p-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">{incident.service} · {incident.endpoint}</p>
+                    <p className="text-xs text-muted-foreground">{incident.type} · {new Date(incident.lastSeen).toLocaleString()}</p>
+                    <Badge variant={incident.status === "OPEN" ? "destructive" : "success"}>
+                      {incident.status}
+                    </Badge>
+                  </div>
+                  {incident.status === "OPEN" && (
+                    <Button size="sm" onClick={() => resolve(incident)} className="gap-2">
+                      <ArrowRight className="h-4 w-4" /> Resolve
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </section>
+      )}
 
-      <section className="glass-panel card" style={{ marginTop: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Live traffic</h3>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn secondary" onClick={applyFilters}>Apply filters</button>
-            <button className="btn" onClick={load}>Refresh</button>
+      {mounted && (
+      <Card>
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Live traffic</CardTitle>
+            <CardDescription>Latest requests with performance signals, sorted by most recent.</CardDescription>
           </div>
-        </div>
-
-        <div className="filters" style={{ marginBottom: 14 }}>
-          <input className="input" placeholder="Service" value={filters.service} onChange={(e) => setFilters({ ...filters, service: e.target.value })} />
-          <input className="input" placeholder="Endpoint" value={filters.endpoint} onChange={(e) => setFilters({ ...filters, endpoint: e.target.value })} />
-          <select className="input" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-            <option value="">Status</option>
-            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={filters.slow}
-              onChange={(e) => setFilters({ ...filters, slow: e.target.checked })}
-            />
-            <span>slow &gt; 500ms</span>
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={filters.broken}
-              onChange={(e) => setFilters({ ...filters, broken: e.target.checked })}
-            />
-            <span>broken 5xx</span>
-          </label>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={filters.rateLimited ?? false}
-              onChange={(e) => setFilters({ ...filters, rateLimited: e.target.checked })}
-            />
-            <span>rate-limit hits</span>
-          </label>
-        </div>
-
-        <div className="table-card" style={{ overflowX: "auto" }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th>Endpoint</th>
-                <th>Status</th>
-                <th>Latency</th>
-                <th>Rate-limit</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((l, i) => (
-                <tr key={i}>
-                  <td>{l.service}</td>
-                  <td>{l.endpoint}</td>
-                  <td><span className="badge">{l.status}</span></td>
-                  <td>{l.latencyMs} ms</td>
-                  <td>{l.rateLimited ? "Yes" : "No"}</td>
-                  <td>{new Date(l.timestamp).toLocaleTimeString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => {
+              const next = !liveAsc;
+              setLiveAsc(next);
+              if (typeof window !== "undefined") localStorage.setItem("liveSortAsc", String(next));
+            }}>
+              {liveAsc ? "Oldest first" : "Newest first"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-3 grid gap-2 md:grid-cols-3">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Service
+              <select
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                {availableServices.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Method
+              <select
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                value={methodFilter}
+                onChange={(e) => setMethodFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                {availableMethods.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              Status
+              <select
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                <option value="2xx">2xx</option>
+                <option value="4xx">4xx</option>
+                <option value="5xx">5xx</option>
+              </select>
+            </label>
+          </div>
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Time</TableHead>
+                  <TableHead scope="col">Service</TableHead>
+                  <TableHead scope="col">Endpoint</TableHead>
+                  <TableHead scope="col">Method</TableHead>
+                  <TableHead scope="col">Status</TableHead>
+                  <TableHead scope="col">Latency</TableHead>
+                  <TableHead scope="col">Request</TableHead>
+                  <TableHead scope="col">Response</TableHead>
+                  <TableHead scope="col">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString()}</TableCell>
+                    <TableCell className="font-medium">{log.service}</TableCell>
+                    <TableCell>{log.endpoint}</TableCell>
+                    <TableCell>{log.method}</TableCell>
+                    <TableCell>
+                      <Badge variant={log.status >= 500 ? "destructive" : log.status >= 400 ? "warning" : "success"}>{log.status}</Badge>
+                    </TableCell>
+                    <TableCell>{log.latencyMs} ms</TableCell>
+                    <TableCell>{log.requestSizeBytes ? `${log.requestSizeBytes} B` : "-"}</TableCell>
+                    <TableCell>{log.responseSizeBytes ? `${log.responseSizeBytes} B` : "-"}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => copyCurl(log)}>
+                        Copy cURL
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      )}
     </div>
   );
 }
 
-function Widget({ title, children }: { title: string; children: React.ReactNode }) {
+function MetricCard({ label, value, helper, icon, loading }: { label: string; value: number; helper: string; icon: React.ReactNode; loading?: boolean }) {
   return (
-    <div className="glass-panel card">
-      <div className="muted" style={{ fontSize: 13 }}>{title}</div>
-      <div style={{ fontSize: 26, fontWeight: 700 }}>{children}</div>
-    </div>
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between">
+        <div>
+          <CardDescription>{label}</CardDescription>
+          <CardTitle className="text-3xl">
+            {loading ? <Skeleton className="h-8 w-16" /> : value}
+          </CardTitle>
+        </div>
+        <div className="rounded-full bg-border/60 p-2 text-primary">{icon}</div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs text-muted-foreground">{helper}</p>
+      </CardContent>
+    </Card>
   );
+}
+
+function playChime() {
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = 880;
+  gain.gain.value = 0.1;
+  osc.connect(gain).connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.25);
 }

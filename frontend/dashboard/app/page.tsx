@@ -2,18 +2,13 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { requireAuth } from "../lib/auth";
 
 export default function Home() {
   const router = useRouter();
   useEffect(() => {
-    router.push("/signup");
+    const token = requireAuth();
+    router.replace(token ? "/dashboard" : "/login");
   }, [router]);
-  return (
-    <main className="page-shell">
-      <div className="glass-panel hero">
-        <h1>Redirecting you to Project Leap…</h1>
-        <p className="muted">Opening sign-up. If nothing happens, go to /signup.</p>
-      </div>
-    </main>
-  );
+  return null;
 }

@@ -1,15 +1,35 @@
-import axios from "axios";
+"use client";
 
-const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080";
+import axios from "axios";
+import { clearSession, getToken, isExpired } from "./session";
+
+const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 export const api = axios.create({
-  baseURL: apiBase,
+  baseURL,
+  withCredentials: true,
 });
 
-export function setToken(token: string | null) {
-  if (token) {
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common["Authorization"];
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token && !isExpired(token)) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
   }
-}
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      clearSession();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const withToken = () => getToken();

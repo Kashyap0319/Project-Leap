@@ -2,6 +2,7 @@ package com.projectleap.collector.model
 
 import com.projectleap.contracts.AlertType
 import com.projectleap.contracts.Severity
+import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Document
 
@@ -13,5 +14,6 @@ data class AlertDocument(
     val service: String,
     val endpoint: String,
     val triggeredAt: Long,
-    val severity: Severity
+    val severity: Severity,
+    @get:JsonProperty("detectedAt") val detectedAt: Long = triggeredAt
 )

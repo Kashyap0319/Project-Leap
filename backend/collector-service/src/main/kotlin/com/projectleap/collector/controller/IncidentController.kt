@@ -15,7 +15,10 @@ class IncidentController(
     @GetMapping
     fun listOpen(): List<Incident> = incidentService.listOpen()
 
-    @PostMapping("/{id}/resolve")
+    @PatchMapping("/{id}/resolve")
     fun resolve(@PathVariable id: String, @RequestBody req: ResolveRequest): ResponseEntity<Incident> =
         ResponseEntity.ok(incidentService.resolve(id, req.version))
+
+    @PostMapping("/{id}/resolve")
+    fun resolvePost(@PathVariable id: String, @RequestBody req: ResolveRequest): ResponseEntity<Incident> = resolve(id, req)
 }

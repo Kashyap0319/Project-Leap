@@ -3,7 +3,7 @@
 /.vscode
 /node_modules
 /.next
-/.next
+**/.next
 /node_modules
 **/node_modules
 /out

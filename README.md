@@ -48,6 +48,16 @@ Deliver a plug-in observability layer for microservices that captures every API 
 - Rate-limit override upsert: `curl -X POST http://localhost:8080/api/rate-limit -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"service":"collector","limitPerSecond":20,"burst":40}'`
 - Incidents: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/incidents`
 
+### Endpoint cheat sheet (all require `Authorization: Bearer <token>` unless noted)
+- `POST /auth/signup` — body `{ "username": "you@example.com", "password": "Passw0rd!" }`
+- `POST /auth/login` — body `{ "username": "you@example.com", "password": "Passw0rd!" }`
+- `POST /api/logs/batch` — body `[{"service":"svc","endpoint":"/path","status":200,"latencyMs":100,"rateLimited":false,"timestamp":1700000000000}]`
+- `GET /api/logs` — query filters: `service`, `endpoint`, `status` (code or 2xx/4xx/5xx/429), `slow`, `broken`, `rateLimited`, `errorsOnly`, `q`, `window`, `startTs`, `endTs`, `page`, `size`.
+- `GET /api/alerts` — optional `service`, `endpoint`, `type`, `limit`.
+- `GET /api/incidents` — list open incidents; `PATCH|POST /api/incidents/{id}/resolve` with `{ "version": <int> }`.
+- `GET /api/rate-limit` — list overrides; `POST /api/rate-limit` upsert `{ "service": "svc", "limitPerSecond": 100, "burst": 200 }`.
+- `GET /api/services` — aggregates; query `window` = `1h|24h|7d`.
+
 ## Outcome / verification
 - Smoke tests executed: signup/login, log batch ingest, log query, alerts list, rate-limit upsert/list, incidents fetch, services aggregation (empty until data accrues). New logs appear via `/api/logs` after posting a batch.
 - Concurrency protection: incident resolve uses optimistic locking with `@Version`; rate-limit upsert and user signup run under meta transactions.

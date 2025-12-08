@@ -1,61 +1,69 @@
-# Project Leap – API Monitoring & Observability
+# Project Leap – API Monitoring & Observability Platform
 
-## Architecture
-- **Collector Service (Spring Boot + Kotlin)**
-  - Receives batched `LogEvent` payloads over REST at `/api/logs/batch`.
-  - Dual Mongo setup: `logs` database for raw traffic, `meta` database for users, rate-limit overrides, alerts, and incidents. Provide separate URIs via `LOGS_MONGO_URI` and `META_MONGO_URI` (can point to different Mongo instances/clusters to satisfy “two separate databases” requirement).
-  - JWT-authenticated APIs: alerts, incidents (with optimistic locking), rate-limit overrides, service analytics.
-  - Alert rules: latency > 500ms, status 5xx, or rate-limit hit. Each alert also bumps/create an incident record.
-- **Tracker Library (Spring Boot starter, Kotlin)**
-  - Server filter + OkHttp interceptor to capture inbound/outbound requests.
-  - Per-service, token-bucket rate limiter; overrides pulled from collector `/api/rate-limit` on startup.
-  - Buffered, retried batching to `/api/logs/batch` with JWT signed by service name/secret.
-- **Next.js Dashboard (App Router)**
-  - Auth (signup/login) stores JWT client-side; protected routes via middleware.
-  - Screens: dashboard, logs explorer (filters + pagination), alerts, services analytics, incidents resolution.
-  - Uses `NEXT_PUBLIC_API_BASE_URL` to target collector.
+## Vision
+Deliver a plug-in observability layer for microservices that captures every API call, enforces per-service rate awareness, detects slow/broken endpoints in real time, and exposes all of it through a secure dashboard backed by dual MongoDB stores.
 
-## Data Model / Schemas
-- **logs (logs DB)**: `service`, `endpoint`, `method`, `status`, `latencyMs`, `rateLimited`, `timestamp`, `requestId`, `requestSizeBytes`, `responseSizeBytes`.
-- **alerts (meta DB)**: `type`, `message`, `service`, `endpoint`, `triggeredAt`, `severity`, exposed as `detectedAt` to clients.
-- **incidents (meta DB)**: optimistic locked via `@Version`; `status`, `occurrences`, `firstSeen`, `lastSeen`, `severity`, `resolvedAt`.
-- **rate_limit_configs (meta DB)**: per-service `limitPerSecond`, `burst` overrides.
-- **users (meta DB)**: `username`, `passwordHash`, `createdAt`.
+## What we built
+- **API Tracking Client (Kotlin)**: reusable starter for Spring Boot services with a servlet filter and OkHttp interceptor that records endpoint, method, status, latency, timestamp, request/response sizes, service name, and rate-limit hits, then batches to the collector over REST.
+- **Central Collector (Spring Boot + Kotlin)**: JWT-secured ingestion at `/api/logs/batch`, dual Mongo connections (logs + metadata), alerting rules (latency > 500ms, 5xx, rate-limit exceeded), incidents with optimistic locking, rate-limit override APIs, and service analytics.
+- **Next.js Dashboard**: login/signup, protected routes, logs explorer with filters, widgets for slow/broken/rate-limited counts, alerts list, service analytics, and incident resolution UI.
 
-## Dual Mongo Setup
-- `MongoConfig` declares two `MongoTemplate` beans (`logsTemplate`, `metaTemplate`) and two `MongoTransactionManager`s (`logsTxManager`, `metaTxManager`).
-- Logs pipeline writes to `logsTemplate`; metadata (users, alerts, incidents, rate-limit overrides) uses `metaTemplate` with explicit transaction demarcation on mutating flows.
+## Architecture (textual)
+- Services emit `LogEvent` → collector `/api/logs/batch` (bearer JWT).
+- Collector writes raw traffic to the **logs** Mongo; metadata (users, rate-limit configs, alerts, incidents) to the **meta** Mongo. Two `MongoTemplate` beans + two `MongoTransactionManager`s isolate the stores.
+- Alert engine evaluates each log (latency, status, rateLimited) and persists alerts/incidents in meta DB; incident resolves use optimistic locking to protect concurrent writes.
+- Dashboard consumes collector REST APIs (`/api/logs`, `/api/alerts`, `/api/incidents`, `/api/rate-limit`, `/api/services`).
+- Rate limiter: token-bucket default 100 rps per service; overrides are stored in meta DB and pulled by the tracker on startup. Exceeding the limit tags the log (`rateLimited=true`) but does not block the request.
 
-## Rate Limiter
-- Default: 100 req/s token bucket, burst = 100 (configurable via `monitoring.rateLimit` in services).
-- Overrides: collector `/api/rate-limit` stores overrides per service; tracker fetches override on startup (JWT-auth) and applies to limiter. Exceeding limit only flags the log with `rateLimited=true`; request still proceeds.
-- Rate-limit-hit alerts emitted by collector rules.
+## Data model highlights
+- **logs (logs DB)**: service, endpoint, method, status, latencyMs, rateLimited, timestamp, requestId, requestSizeBytes, responseSizeBytes.
+- **meta DB**: users; rate_limit_configs; alerts (`type`, `message`, `service`, `endpoint`, `triggeredAt`, `severity` exposed as `detectedAt`); incidents with `@Version` for optimistic locking and resolve audit.
 
-## Concurrency & Consistency
-- Incidents use optimistic locking and meta transaction manager for resolves and touch/create operations.
-- Rate-limit config upserts and user signup also wrapped in meta transactions.
-- Log ingestion bulk-writes to logs DB, then alert/incident creation happens in meta DB.
-- Concurrency smoke test is provided (see `collector-service/src/test/kotlin/.../ConcurrencySmokeTest.kt`).
+## API surface (collector)
+- `POST /auth/signup`, `POST /auth/login` → JWT.
+- `POST /api/logs/batch` (auth) → list of `LogEvent`.
+- `GET /api/logs` (auth) → filters for service, endpoint, status (code or bucket), slow, broken, rateLimited, errorsOnly, q, window, startTs, endTs, paging.
+- `GET /api/alerts` (auth) → filter by service/endpoint/type, limit.
+- `GET /api/incidents` (auth) → open incidents; `PATCH|POST /api/incidents/{id}/resolve` with `version`.
+- `GET|POST /api/rate-limit` (auth) → list/upsert per-service overrides.
+- `GET /api/services` (auth) → aggregates (requests, avg latency, error rate, slow/error counts) over 1h/24h/7d windows.
 
-## API Surface (collector)
-- `POST /auth/signup|/login` → JWT.
-- `POST /api/logs/batch` (auth) → accept list of `LogEvent`.
-- `GET /api/logs` (auth) → filters: `service`, `endpoint`, `status` (code or 2xx/4xx/5xx/429), `slow`, `broken`, `rateLimited`, `errorsOnly`, `q`, `window` (1h|24h|7d), `startTs`, `endTs`, paging `page`, `size`.
-- `GET /api/alerts` (auth) → filters `service`, `endpoint`, `type`, `limit`; returns `detectedAt`.
-- `GET /api/incidents` (auth) → open incidents; `PATCH /api/incidents/{id}/resolve` with `version` for optimistic resolution (POST supported for compatibility).
-- `GET|POST /api/rate-limit` (auth) → list/upsert overrides.
-- `GET /api/services` (auth) → aggregated service analytics (requests, avg latency, error rate, latency trend, endpoints stats) over window (1h|24h|7d).
+## Running locally
+- **Backend**: `./gradlew :backend:collector-service:bootRun` with env vars `LOGS_MONGO_URI`, `META_MONGO_URI`, `JWT_SECRET` (trust store via `JAVA_TOOL_OPTIONS` already set in dev).
+- **Frontend**: `cd frontend/dashboard && npm install && npm run dev` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080` (or your host).
+- **Tracker starter**: add the `kotlin-tracker` module to your Spring Boot service and configure `monitoring.serviceName`, `monitoring.collectorUrl`, `monitoring.jwtSecret`; rate-limit defaults to 100 rps unless overridden via collector `/api/rate-limit`.
 
-## Running
-- Backend: `./gradlew :backend:collector-service:bootRun` (requires `LOGS_MONGO_URI`, `META_MONGO_URI`, `JWT_SECRET`).
-- Frontend: `cd frontend/dashboard && npm install && npm run dev` (requires `NEXT_PUBLIC_API_BASE_URL`).
-- Tracker: include `kotlin-tracker` starter in Spring Boot services; configure `monitoring.serviceName`, `monitoring.collectorUrl`, `monitoring.jwtSecret`.
+### Quick API testing (curl or PowerShell)
+- Signup: `curl -X POST http://localhost:8080/auth/signup -H "Content-Type: application/json" -d '{"username":"you@example.com","password":"Passw0rd!"}'`
+- Login (capture `token`): `curl -X POST http://localhost:8080/auth/login -H "Content-Type: application/json" -d '{"username":"you@example.com","password":"Passw0rd!"}'`
+- Post logs batch:
+	```bash
+	curl -X POST http://localhost:8080/api/logs/batch \
+		-H "Authorization: Bearer $TOKEN" \
+		-H "Content-Type: application/json" \
+		-d '[{"service":"collector","endpoint":"/demo","status":200,"latencyMs":120,"rateLimited":false,"timestamp":1700000000000,"requestId":"req-1","method":"GET","requestBytes":123,"responseBytes":456}]'
+	```
+- Query logs: `curl -H "Authorization: Bearer $TOKEN" 'http://localhost:8080/api/logs?service=collector&endpoint=/demo&size=5'`
+- Alerts: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/alerts`
+- Rate-limit override upsert: `curl -X POST http://localhost:8080/api/rate-limit -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"service":"collector","limitPerSecond":20,"burst":40}'`
+- Incidents: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/incidents`
 
-## Decisions
-- Kept JSON payload field names aligned with frontend (requestSizeBytes/responseSizeBytes, detectedAt).
-- Used MongoTemplate for flexibility; aggregation for `/api/services` computed in Kotlin over recent window.
-- Optimistic locking chosen for incident resolution to satisfy concurrent-resolve safety.
+## Outcome / verification
+- Smoke tests executed: signup/login, log batch ingest, log query, alerts list, rate-limit upsert/list, incidents fetch, services aggregation (empty until data accrues). New logs appear via `/api/logs` after posting a batch.
+- Concurrency protection: incident resolve uses optimistic locking with `@Version`; rate-limit upsert and user signup run under meta transactions.
 
-## Non-Functional
-- Bulk inserts used for logs; alerts/incidents use indexed fields for lookup.
-- Concurrency smoke test exercises 50 parallel log batches to validate ingestion path.
+## Repository layout (cleaned)
+- `backend/` – collector service, tracker starter, shared contracts.
+- `frontend/dashboard/` – Next.js app router UI.
+- `docs/` – assignment brief (`Assignment-API-Monitoring-Observability.pdf`).
+- Root: Gradle build files, Docker/Docker Compose, scripts, env sample.
+
+## Key decisions
+- Dual Mongo via two templates/transaction managers to satisfy separation and allow independent scaling.
+- Token-bucket limiter with non-blocking behavior to avoid impacting production traffic while still surfacing violations.
+- MongoTemplate for flexible aggregations; optimistic locking over incidents to keep resolves safe under concurrent developers.
+
+## Future extensions
+- Add background aggregation for `/api/services` to reduce query-time work.
+- Wire alert notifications to email/Slack.
+- Add synthetic load tests to validate 50+ concurrent ingest batches in CI.

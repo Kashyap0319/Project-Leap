@@ -31,7 +31,10 @@ export function setSession(token: string, user?: { email: string; name?: string 
   const payload: StoredSession = { token, user };
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    document.cookie = `${COOKIE_KEY}=${token}; path=/; SameSite=Lax; Secure`;
+    const isHttps = window.location.protocol === "https:";
+    const secureFlag = isHttps ? "Secure" : "";
+    const parts = [`${COOKIE_KEY}=${token}`, "path=/", "SameSite=Lax", secureFlag].filter(Boolean);
+    document.cookie = parts.join("; ");
   }
 }
 

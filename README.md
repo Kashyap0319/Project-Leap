@@ -58,6 +58,29 @@ Deliver a plug-in observability layer for microservices that captures every API 
 - `docs/` – assignment brief (`Assignment-API-Monitoring-Observability.pdf`).
 - Root: Gradle build files, Docker/Docker Compose, scripts, env sample.
 
+```
+.
+├─backend
+│  ├─collector-service
+│  ├─kotlin-tracker
+│  └─shared-contracts
+├─frontend
+│  └─dashboard
+├─docs
+│  └─Assignment-API-Monitoring-Observability.pdf
+├─scripts
+├─docker-compose.yml
+├─Dockerfile
+├─build.gradle.kts
+├─settings.gradle.kts
+├─gradle/
+├─gradlew
+├─gradlew.bat
+├─vercel.json
+├─.env.example
+└─README.md
+```
+
 ## Key decisions
 - Dual Mongo via two templates/transaction managers to satisfy separation and allow independent scaling.
 - Token-bucket limiter with non-blocking behavior to avoid impacting production traffic while still surfacing violations.

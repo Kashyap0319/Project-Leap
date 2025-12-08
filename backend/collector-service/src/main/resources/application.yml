@@ -8,9 +8,9 @@ spring:
 
 mongo:
   logs:
-    uri: ${LOGS_MONGO_URI:mongodb+srv://shreyanshkp023:leapproject@cluster0.oo2kg1m.mongodb.net/logsdb?retryWrites=true&w=majority&appName=Cluster0}
+    uri: ${LOGS_MONGO_URI:mongodb://localhost:27017/logsdb}
   meta:
-    uri: ${META_MONGO_URI:mongodb+srv://shreyanshkp023:leapproject@cluster0.oo2kg1m.mongodb.net/metadb?retryWrites=true&w=majority&appName=Cluster0}
+    uri: ${META_MONGO_URI:mongodb://localhost:27017/metadb}
 
 security:
   jwt:

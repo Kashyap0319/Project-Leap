@@ -29,9 +29,17 @@ Deliver a plug-in observability layer for microservices that captures every API 
 - `GET /api/services` (auth) → aggregates (requests, avg latency, error rate, slow/error counts) over 1h/24h/7d windows.
 
 ## Running locally
-- **Backend**: `./gradlew :backend:collector-service:bootRun` with env vars `LOGS_MONGO_URI`, `META_MONGO_URI`, `JWT_SECRET` (trust store via `JAVA_TOOL_OPTIONS` already set in dev).
+- **Backend**: set env vars `LOGS_MONGO_URI`, `META_MONGO_URI`, `JWT_SECRET` (no hardcoded credentials) then run `./gradlew :backend:collector-service:bootRun`.
 - **Frontend**: `cd frontend/dashboard && npm install && npm run dev` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080` (or your host).
 - **Tracker starter**: add the `kotlin-tracker` module to your Spring Boot service and configure `monitoring.serviceName`, `monitoring.collectorUrl`, `monitoring.jwtSecret`; rate-limit defaults to 100 rps unless overridden via collector `/api/rate-limit`.
+
+### Required environment (example)
+- `LOGS_MONGO_URI=mongodb://localhost:27017/logsdb`
+- `META_MONGO_URI=mongodb://localhost:27017/metadb`
+- `JWT_SECRET=<generate-64+ hex or base64>`
+- `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080`
+
+If using Atlas, set the URIs to your clusters; ensure the user has rights on both databases. No credentials are checked into the repo.
 
 ### Quick API testing (curl or PowerShell)
 - Signup: `curl -X POST http://localhost:8080/auth/signup -H "Content-Type: application/json" -d '{"username":"you@example.com","password":"Passw0rd!"}'`

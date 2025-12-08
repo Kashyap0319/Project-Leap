@@ -37,7 +37,8 @@ async function authenticate(path: string, body: Record<string, string>): Promise
     throw new Error("Email and password are required");
   }
   try {
-    const payload = { username: clean.email, password: clean.password, fullName: clean.fullName } as Record<string, string>;
+    // Send email and password only
+    const payload = { email: clean.email, password: clean.password, fullName: clean.fullName } as Record<string, string>;
     const { data } = await api.post<AuthResponse>(path, payload);
     if (!data.token) {
       throw new Error("Token missing in response");
@@ -53,8 +54,8 @@ export async function login(email: string, password: string) {
   return authenticate("/auth/login", { email, password });
 }
 
-export async function signup(fullName: string, email: string, password: string) {
-  return authenticate("/auth/signup", { fullName, email, password });
+export async function signup(username: string, email: string, password: string) {
+  return authenticate("/auth/signup", { username, email, password });
 }
 
 export async function fetchMe(): Promise<AuthUser> {

@@ -21,22 +21,22 @@ class AuthService(
     data class AuthResponse(val token: String)
 
     @Transactional("metaTxManager")
-    fun signup(username: String, password: String): AuthResponse {
-        if (username.isBlank() || password.isBlank()) throw IllegalArgumentException("Username/password required")
+    fun signup(username: String, email: String, password: String): AuthResponse {
+        if (username.isBlank() || email.isBlank() || password.isBlank()) throw IllegalArgumentException("Username/email/password required")
         val hash = passwordEncoder.encode(password)
         try {
-            metaTemplate.insert(UserDocument(username = username, passwordHash = hash))
+            metaTemplate.insert(UserDocument(username = username, email = email, passwordHash = hash))
         } catch (ex: DuplicateKeyException) {
             throw IllegalArgumentException("User already exists")
         }
-        val token = jwtService.sign(username)
+        val token = jwtService.sign(email)
         return AuthResponse(token)
     }
 
-    fun login(username: String, password: String): AuthResponse {
-        val user = metaTemplate.findOne(Query(Criteria.where("username").`is`(username)), UserDocument::class.java)
+    fun login(email: String, password: String): AuthResponse {
+        val user = metaTemplate.findOne(Query(Criteria.where("email").`is`(email)), UserDocument::class.java)
             ?: throw IllegalArgumentException("Invalid credentials")
         if (!passwordEncoder.matches(password, user.passwordHash)) throw IllegalArgumentException("Invalid credentials")
-        return AuthResponse(jwtService.sign(username))
+        return AuthResponse(jwtService.sign(email))
     }
 }

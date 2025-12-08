@@ -35,6 +35,7 @@ function LoginContent() {
 
   const onSubmit = async (values: FormValues) => {
     try {
+      // Always send email as username
       const { token } = await login(values.email, values.password);
       toast.success("Welcome back", { description: "Redirecting to dashboard" });
       if (token) {

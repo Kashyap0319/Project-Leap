@@ -14,7 +14,7 @@ import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 
 const schema = z.object({
-  fullName: z.string().min(2, "Name is required"),
+  username: z.string().min(2, "Username is required"),
   email: z.string().email("Valid email required"),
   password: z.string().min(6, "Minimum 6 characters"),
 });
@@ -32,7 +32,7 @@ export default function SignupPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await signup(values.fullName, values.email, values.password);
+      await signup(values.username, values.email, values.password);
       toast.success("Account created", { description: "Redirecting to dashboard" });
       router.push("/dashboard");
     } catch (err) {
@@ -65,9 +65,9 @@ export default function SignupPage() {
           <CardContent>
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Full name</label>
-                <Input placeholder="Alex Rivera" autoComplete="name" {...register("fullName")} />
-                {errors.fullName && <p className="text-sm text-destructive">{errors.fullName.message}</p>}
+                <label className="text-sm font-medium">Username</label>
+                <Input placeholder="Alex Rivera" autoComplete="username" {...register("username")} />
+                {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Email</label>

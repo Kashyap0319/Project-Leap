@@ -7,7 +7,8 @@ import org.springframework.data.mongodb.core.mapping.Document
 @Document("users")
 data class UserDocument(
     @Id val id: String? = null,
-    @Indexed(unique = true) val username: String,
+    val username: String,
+    @Indexed(unique = true) val email: String,
     val passwordHash: String,
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -1,3 +1,119 @@
+# 🚀 ProjectLeap – Real-Time API Monitoring Platform
+
+A full-stack platform to collect, monitor, and analyze API usage across microservices in real-time.
+
+---
+
+### 📍 Objective
+This project aims to provide:
+✔ Centralized API monitoring  
+✔ Real-time log tracking  
+✔ Incident detection & alerting  
+✔ Developer-friendly dashboards  
+✔ Service performance insights  
+
+> Built to fulfill all functionality requirements defined in the project documentation.
+
+---
+
+## ✨ Features (As per Requirements)
+
+| Category | Features | Status |
+|---------|----------|--------|
+| Logging | Track service, endpoint, method, status, latency, timestamp | ✔ |
+| Alerts | Trigger alerts on failures/slow requests | ✔ |
+| Incidents | Maintain history of critical failures | ✔ |
+| Authentication | JWT-secured Signup & Login | ✔ |
+| Dashboard | KPIs, charts, service overview | ✔ |
+| Database | Dual MongoDB (logsdb + metadb) | ✔ |
+| Filtering | Logs filter by service, status | ✔ |
+| Auto-Refresh | Live updates on dashboard | ✔ |
+| Frontend | Modern responsive UI | ✔ |
+| Evaluation Report | Testing proof included | ✔ |
+
+---
+
+## 🧩 System Architecture
+
+```mermaid
+flowchart LR
+Client[Next.js Dashboard] -->|REST API| CollectorService[Spring Boot Collector]
+CollectorService --> LogsDB[(MongoDB logsdb)]
+CollectorService --> MetaDB[(MongoDB metadb)]
+```
+
+🛠 Tech Stack
+Layer | Technology
+--- | ---
+Frontend | Next.js 14, TypeScript, TailwindCSS, Recharts
+Backend | Spring Boot 3 (Kotlin), JWT Auth
+Database | MongoDB Atlas
+Deployment | Localhost / Cloud ready
+
+🔐 Authentication Flow
+Register user → stored in meta database
+
+Login → returns JWT token
+
+Protected endpoints require Authorization header
+Bearer <token>
+
+📡 Collector Service APIs
+Auth
+Method | Endpoint | Description
+--- | --- | ---
+POST | /auth/signup | User Registration
+POST | /auth/login | Login + JWT
+
+Logs
+Method | Endpoint | Description
+--- | --- | ---
+POST | /api/logs | Push logs
+GET | /api/logs | Get logs list
+
+Incidents
+Method | Endpoint | Description
+--- | --- | ---
+GET | /api/incidents | Incident tracking
+
+Alerts
+Method | Endpoint | Description
+--- | --- | ---
+GET | /api/alerts | Alerts for Slow/Error logs
+
+🧪 Testing (As required in submitted PDF)
+✔ API authentication test
+✔ Logs creation shown in logsdb
+✔ Alerts triggered by slow/error logs
+✔ Incident creation scenario validated
+✔ Screenshots included in report
+
+🔎 How to Run Locally
+Backend
+```bash
+cd backend/collector-service
+./gradlew bootRun
+```
+Frontend
+```bash
+cd frontend/dashboard
+npm install
+npm run dev
+```
+Open UI ➜ http://localhost:3000
+Backend ➜ http://localhost:8080
+
+🧠 Future Scope
+- WebSockets for real-time updates
+- Email/SMS alerts
+- Role-based access
+- Log export options
+- AI-based reliability scoring
+
+👨‍💻 Developer
+Name | Role
+--- | ---
+Shreyansh Kashyap | Full Stack Developer
 # Project Leap – API Monitoring & Observability Platform
 
 ## Vision

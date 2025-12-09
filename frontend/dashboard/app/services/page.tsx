@@ -1,5 +1,6 @@
 "use client";
 
+import { safeArray } from "../utils/safeArray";
 import { useEffect, useMemo, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchServices } from "../../lib/data";
@@ -43,7 +44,7 @@ export default function ServicesPage() {
 
   useAutoRefresh(autoRefresh, interval, load);
 
-  const service = useMemo(() => services.find((s) => s.name === selected), [services, selected]);
+  const service = useMemo(() => safeArray(services).find((s) => s.name === selected), [services, selected]);
 
   return (
     <div className="space-y-4">
@@ -64,7 +65,7 @@ export default function ServicesPage() {
           {loading ? (
             <Skeleton className="col-span-2 h-10 w-full sm:col-span-4" />
           ) : (
-            services.map((svc) => (
+            safeArray(services).map((svc) => (
               <Button
                 key={svc.name}
                 variant={svc.name === selected ? "default" : "outline"}
@@ -132,7 +133,7 @@ export default function ServicesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {service.endpoints.map((ep: any) => (
+                  {safeArray(service.endpoints).map((ep: any) => (
                     <TableRow key={`${ep.method}-${ep.path}`}>
                       <TableCell className="font-medium">{ep.path}</TableCell>
                       <TableCell>{ep.method}</TableCell>
@@ -158,10 +159,10 @@ export default function ServicesPage() {
 
 function Sparkline({ points }: { points: Array<{ latencyMs: number }> }) {
   if (!points?.length) return <span className="w-12" />;
-  const slice = points.slice(-10);
-  const max = Math.max(...slice.map((p) => p.latencyMs), 1);
+  const slice = safeArray(points).slice(-10);
+  const max = Math.max(...safeArray(slice).map((p) => p.latencyMs), 1);
   const path = slice
-    .map((p, i) => {
+    safeArray(slice).map((p, i) => {
       const x = (i / Math.max(slice.length - 1, 1)) * 40;
       const y = 16 - (p.latencyMs / max) * 16;
       return `${x},${y}`;

@@ -1,5 +1,5 @@
 "use client";
-
+import { safeArray } from "../utils/safeArray";
 import { useEffect, useRef, useState } from "react";
 import { Bell, Loader2, Volume2 } from "lucide-react";
 import { fetchAlerts } from "../../lib/data";
@@ -22,7 +22,7 @@ export default function AlertsPage() {
     setLoading(true);
     try {
       const data = await fetchAlerts();
-      const incoming = new Set((data as any[]).map((a) => a.id));
+      const incoming = new Set(safeArray(data).map((a) => a.id));
       const newOnes = [...incoming].filter((id) => !prevIds.current.has(id));
       if (prevIds.current.size > 0 && newOnes.length > 0) {
         toast.warning("⚠️ New alert detected", { description: `${newOnes.length} new alert(s)` });
@@ -69,7 +69,7 @@ export default function AlertsPage() {
           ) : alerts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No alerts right now. Enjoy the calm.</p>
           ) : (
-            alerts.map((alert) => (
+            safeArray(alerts).map((alert) => (
               <div key={alert.id} className="flex items-start justify-between rounded-xl border border-border/60 bg-card/70 p-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">

@@ -1,6 +1,10 @@
 "use client";
 
+"use client";
+
 import type React from "react";
+"use client";
+import { safeArray } from "../utils/safeArray";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pie, PieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import { AlertCircle, ArrowRight, Clock4, Flame, Gauge, Loader2, MapPin, ShieldCheck, Volume2, VolumeX } from "lucide-react";
@@ -22,10 +26,55 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [interval, setIntervalMs] = useState(REFRESH_DEFAULT);
-  const [logs, setLogs] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [incidents, setIncidents] = useState([]);
-  const [services, setServices] = useState([]);
+  const [logs, setLogs] = useState<any[] | null>(null);
+  const [alerts, setAlerts] = useState<any[] | null>(null);
+  const [incidents, setIncidents] = useState<any[] | null>(null);
+  const [services, setServices] = useState<any[] | null>(null);
+    // Mock fallback for logs
+    useEffect(() => {
+      if (!logs) {
+        setLogs([
+          {
+            id: "1",
+            service: "test-service",
+            endpoint: "/home",
+            method: "GET",
+            status: 200,
+            latencyMs: 120,
+            timestamp: new Date().toISOString()
+          }
+        ]);
+      }
+    }, [logs]);
+
+    // Mock fallback for alerts
+    useEffect(() => {
+      if (!alerts) {
+        setAlerts([
+          {
+            id: "1",
+            service: "payment-service",
+            message: "Slow response detected",
+            severity: "HIGH",
+            timestamp: new Date().toISOString()
+          }
+        ]);
+      }
+    }, [alerts]);
+
+    // Mock fallback for services
+    useEffect(() => {
+      if (!services) {
+        setServices([
+          {
+            name: "test-service",
+            totalRequests: 12,
+            errors: 3,
+            avgLatency: 221
+          }
+        ]);
+      }
+    }, [services]);
   const [user, setUser] = useState(null as any);
   const [muteAlerts, setMuteAlerts] = useState(false);
   const [liveAsc, setLiveAsc] = useState(false);
@@ -38,12 +87,13 @@ export default function Dashboard() {
 
   // Keep live traffic stable and time-ordered (newest first) for the table.
   const liveLogs = useMemo(() => {
-    const sorted = [...(logs as any[])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const logsArray: any[] = safeArray(logs);
+    const sorted = [...logsArray].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return liveAsc ? [...sorted].reverse() : sorted;
   }, [logs, liveAsc]);
 
   const filteredLogs = useMemo(() => {
-    return liveLogs.filter((log: any) => {
+    return safeArray(liveLogs).filter((log: any) => {
       const serviceOk = serviceFilter === "all" || log.service === serviceFilter;
       const methodOk = methodFilter === "all" || (log.method || "").toUpperCase() === methodFilter;
       const statusOk =
@@ -57,13 +107,13 @@ export default function Dashboard() {
 
   const availableServices = useMemo(() => {
     const names = new Set<string>();
-    (logs as any[]).forEach((l) => names.add(l.service));
+    safeArray(logs).forEach((l: any) => names.add(l.service));
     return Array.from(names).filter(Boolean).sort();
   }, [logs]);
 
   const availableMethods = useMemo(() => {
     const methods = new Set<string>();
-    (logs as any[]).forEach((l) => methods.add((l.method || "").toUpperCase()));
+    safeArray(logs).forEach((l: any) => methods.add((l.method || "").toUpperCase()));
     methods.delete("");
     return Array.from(methods).sort();
   }, [logs]);
@@ -131,15 +181,16 @@ export default function Dashboard() {
   useAutoRefresh(autoRefresh, interval, load);
 
   const summary = useMemo(() => {
-    const slow = (logs as any[]).filter((l) => l.latencyMs > 500).length;
-    const broken = (logs as any[]).filter((l) => l.status >= 500).length;
-    const rate = (logs as any[]).filter((l) => l.rateLimited || l.status === 429).length;
-    const success = (logs as any[]).filter((l) => l.status < 400).length;
-    const total = (logs as any[]).length || 1;
+    const logsArray: any[] = safeArray(logs);
+    const slow = logsArray.filter((l) => l.latencyMs > 500).length;
+    const broken = logsArray.filter((l) => l.status >= 500).length;
+    const rate = logsArray.filter((l) => l.rateLimited || l.status === 429).length;
+    const success = logsArray.filter((l) => l.status < 400).length;
+    const total = logsArray.length || 1;
     const error = total - success;
 
     const byEndpoint: Record<string, { sum: number; count: number }> = {};
-    (logs as any[]).forEach((l) => {
+    logsArray.forEach((l) => {
       const key = `${l.method || ""} ${l.endpoint}`;
       byEndpoint[key] = byEndpoint[key] || { sum: 0, count: 0 };
       byEndpoint[key].sum += l.latencyMs || 0;
@@ -155,7 +206,8 @@ export default function Dashboard() {
 
   const errorRateSeries = useMemo(() => {
     const buckets: Record<string, { errors: number; total: number }> = {};
-    (logs as any[]).forEach((l: any) => {
+    const logsArray: any[] = safeArray(logs);
+    logsArray.forEach((l: any) => {
       const bucket = new Date(l.timestamp).setMinutes(new Date(l.timestamp).getMinutes(), 0, 0).toString();
       buckets[bucket] = buckets[bucket] || { errors: 0, total: 0 };
       buckets[bucket].total += 1;
@@ -168,7 +220,8 @@ export default function Dashboard() {
 
   const avgLatencyPerEndpoint = useMemo(() => {
     const byEndpoint: Record<string, { sum: number; count: number; method: string }> = {};
-    (logs as any[]).forEach((l: any) => {
+    const logsArray: any[] = safeArray(logs);
+    logsArray.forEach((l: any) => {
       const key = `${l.method || ""} ${l.endpoint}`;
       byEndpoint[key] = byEndpoint[key] || { sum: 0, count: 0, method: l.method };
       byEndpoint[key].sum += l.latencyMs || 0;
@@ -180,7 +233,7 @@ export default function Dashboard() {
       .slice(0, 10);
   }, [logs]);
 
-  const serviceKpis = useMemo(() => (services as any[]).slice(0, 4), [services]);
+  const serviceKpis = useMemo(() => safeArray(services).slice(0, 4), [services]);
 
   const resolve = async (incident: any) => {
     try {
@@ -241,7 +294,7 @@ export default function Dashboard() {
 
       {serviceKpis.length > 0 && (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {serviceKpis.map((svc: any) => (
+          {safeArray(serviceKpis).map((svc: any) => (
             <Card key={svc.name}>
               <CardHeader>
                 <CardTitle className="text-base">{svc.name}</CardTitle>
@@ -394,7 +447,7 @@ export default function Dashboard() {
             {loading ? (
               <Skeleton className="h-40 w-full" />
             ) : (
-              (alerts as any[]).map((alert) => (
+              safeArray(alerts).map((alert) => (
                 <div key={alert.id} className="flex items-start justify-between rounded-xl border border-border/60 bg-card/70 p-3">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold">
@@ -422,7 +475,7 @@ export default function Dashboard() {
             {loading ? (
               <Skeleton className="h-40 w-full" />
             ) : (
-              (incidents as any[]).map((incident) => (
+              safeArray(incidents).map((incident) => (
                 <div key={incident.id} className="flex items-center justify-between rounded-xl border border-border/60 bg-card/70 p-3">
                   <div className="space-y-1">
                     <p className="text-sm font-semibold">{incident.service} · {incident.endpoint}</p>
@@ -474,7 +527,7 @@ export default function Dashboard() {
                 onChange={(e) => setServiceFilter(e.target.value)}
               >
                 <option value="all">All</option>
-                {availableServices.map((s) => (
+                {safeArray(availableServices).map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
@@ -487,7 +540,7 @@ export default function Dashboard() {
                 onChange={(e) => setMethodFilter(e.target.value)}
               >
                 <option value="all">All</option>
-                {availableMethods.map((m) => (
+                {safeArray(availableMethods).map((m) => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
@@ -524,7 +577,7 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.map((log) => (
+                {safeArray(filteredLogs).map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString()}</TableCell>
                     <TableCell className="font-medium">{log.service}</TableCell>

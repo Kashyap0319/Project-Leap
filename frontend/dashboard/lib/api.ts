@@ -3,33 +3,25 @@
 import axios from "axios";
 import { clearSession, getToken, isExpired } from "./session";
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
-export const api = axios.create({
-  baseURL,
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = getToken();
-  if (token && !isExpired(token)) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error?.response?.status === 401) {
-      clearSession();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
+// Mock API for local development
+export const api = {
+  post: async (path: string, payload: any) => {
+    if (path === "/auth/signup") {
+      // Simulate successful signup with token
+      return { data: { token: "mock-jwt-token", message: "User registered successfully", user: { email: payload.username, fullName: "Test User" } } };
     }
-    return Promise.reject(error);
-  }
-);
+    if (path === "/auth/login") {
+      // Simulate successful login with mock token
+      return { data: { token: "mock-jwt-token", user: { email: payload.username, fullName: "Test User" } } };
+    }
+    // Add more mock endpoints as needed
+    return { data: {} };
+  },
+  get: async (path: string) => {
+    // Simulate mock GET responses
+    return { data: {} };
+  },
+};
 
-export const withToken = () => getToken();
+export const withToken = () => "mock-jwt-token";

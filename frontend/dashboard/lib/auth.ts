@@ -33,12 +33,23 @@ function formatError(err: unknown) {
 
 async function authenticate(path: string, body: Record<string, string>): Promise<AuthResponse> {
   const clean = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v.trim()])) as Record<string, string>;
-  if (!clean.email || !clean.password) {
-    throw new Error("Email and password are required");
+  let payload: Record<string, string>;
+  if (path === "/auth/signup") {
+    // Signup expects username, email, password
+    if (!clean.username || !clean.email || !clean.password) {
+      throw new Error("Username, email, and password are required");
+    }
+    payload = { username: clean.username, email: clean.email, password: clean.password };
+  } else if (path === "/auth/login") {
+    // Login expects username, password
+    if (!clean.username || !clean.password) {
+      throw new Error("Username and password are required");
+    }
+    payload = { username: clean.username, password: clean.password };
+  } else {
+    payload = clean;
   }
   try {
-    // Send email and password only
-    const payload = { email: clean.email, password: clean.password, fullName: clean.fullName } as Record<string, string>;
     const { data } = await api.post<AuthResponse>(path, payload);
     if (!data.token) {
       throw new Error("Token missing in response");

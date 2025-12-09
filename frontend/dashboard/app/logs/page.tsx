@@ -1,7 +1,9 @@
 "use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Search, XCircle } from "lucide-react";
+import { safeArray } from "../utils/safeArray";
 import { fetchLogs } from "../../lib/data";
 import { AutoRefreshControl } from "../../components/common/auto-refresh-control";
 import { Button } from "../../components/ui/button";
@@ -18,7 +20,7 @@ const DEFAULT_PAGE_SIZE = 20;
 
 export default function LogsPage() {
   const [loading, setLoading] = useState(true);
-  const [logs, setLogs] = useState([] as any[]);
+  const [logs, setLogs] = useState<any[] | null>(null);
   const [page, setPage] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [interval, setIntervalMs] = useState(15000);
@@ -65,8 +67,8 @@ export default function LogsPage() {
   useAutoRefresh(autoRefresh, interval, load);
 
   const totals = useMemo(() => {
-    const slow = logs.filter((l) => l.latencyMs > 500).length;
-    const errors = logs.filter((l) => l.status >= 400).length;
+    const slow = safeArray(logs).filter((l) => l.latencyMs > 500).length;
+    const errors = safeArray(logs).filter((l) => l.status >= 400).length;
     return { slow, errors };
   }, [logs]);
 
@@ -173,7 +175,7 @@ export default function LogsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.map((log) => (
+                    {safeArray(logs).map((log) => (
                       <tr key={log.id} className="animate-[fadeIn_200ms_ease] border-b border-border/50">
                         <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString()}</td>
                         <td className="px-3 py-2 font-medium">{log.service}</td>

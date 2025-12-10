@@ -11,8 +11,8 @@ RUN chmod +x gradlew
 # Copy backend source
 COPY backend ./backend
 
-# Build the application
-RUN ./gradlew :backend:collector-service:bootJar --no-daemon
+# Build the application (override any local Java home settings)
+RUN ./gradlew :backend:collector-service:bootJar --no-daemon -Dorg.gradle.java.home=
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine

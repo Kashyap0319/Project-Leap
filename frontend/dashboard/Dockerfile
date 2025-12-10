@@ -26,11 +26,12 @@ RUN npm ci --only=production && npm cache clean --force
 
 # Copy built application from build stage
 COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
 COPY --from=build /app/next.config.js ./
 COPY --from=build /app/tsconfig.json ./
 COPY --from=build /app/tailwind.config.ts ./
 COPY --from=build /app/postcss.config.js ./
+# Copy public folder (created empty if needed)
+COPY --from=build /app/public ./public
 
 # Expose port
 EXPOSE 3000

@@ -1,11 +1,10 @@
 services:
   # Backend Spring Boot Service
   - type: web
+    runtime: docker
     name: collector-service
     dockerfilePath: ./backend/collector-service/Dockerfile
     dockerContext: .
-    buildCommand: ""
-    startCommand: ""
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: production
@@ -27,11 +26,10 @@ services:
 
   # Frontend Next.js Service
   - type: web
+    runtime: docker
     name: dashboard
     dockerfilePath: ./frontend/dashboard/Dockerfile
     dockerContext: .
-    buildCommand: ""
-    startCommand: ""
     envVars:
       - key: NODE_ENV
         value: production

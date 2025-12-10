@@ -1,259 +1,179 @@
-# 🚀 Deployment Guide
+# Render Deployment Guide
 
-## Vercel Deployment (Frontend)
+This guide will help you deploy Project-Leap to Render.
 
-### Step 1: Connect GitHub Repository
+## Prerequisites
 
-1. Go to [https://vercel.com](https://vercel.com)
-2. Sign in with GitHub
-3. Click **"Add New Project"**
-4. Import repository: `Kashyap0319/Project-Leap`
+1. A Render account (sign up at https://render.com)
+2. MongoDB Atlas account (or use Render's MongoDB service)
+3. Git repository (GitHub, GitLab, or Bitbucket)
 
-### Step 2: Configure Project
+## Step 1: Set Up MongoDB Atlas
 
-**Project Settings:**
-- **Framework Preset:** Next.js
-- **Root Directory:** `frontend/dashboard`
-- **Build Command:** `npm run build` (auto-detected)
-- **Output Directory:** `.next` (auto-detected)
-- **Install Command:** `npm install` (auto-detected)
+**⚠️ IMPORTANT: You MUST use MongoDB Atlas (cloud) for Render deployment. Localhost MongoDB will NOT work!**
 
-### Step 3: Environment Variables
+### Quick Setup:
 
-Add these environment variables in Vercel Dashboard:
+1. **Create MongoDB Atlas account**: https://www.mongodb.com/cloud/atlas
+2. **Create a free cluster** (M0 Sandbox - 512MB free)
+3. **Create database user**:
+   - Go to Database Access → Add New Database User
+   - Choose Password authentication
+   - Save username and password securely
+4. **Configure network access**:
+   - Go to Network Access → Add IP Address
+   - Click "Allow Access from Anywhere" (for development)
+   - For production, whitelist Render's IP ranges
+5. **Get connection string**:
+   - Click "Connect" on your cluster
+   - Choose "Connect your application"
+   - Copy the SRV connection string (looks like: `mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority`)
 
+### Create Two Connection Strings:
+
+You need **TWO** connection strings pointing to different databases in the same cluster:
+
+**LOGS_MONGO_URI:**
 ```
-NEXT_PUBLIC_API_BASE_URL=https://your-backend-url.com
-```
-
-**Important:** Replace `your-backend-url.com` with your actual backend deployment URL.
-
-### Step 4: Deploy
-
-Click **"Deploy"** and wait for the build to complete.
-
-Your frontend will be live at: `https://your-project.vercel.app`
-
----
-
-## Backend Deployment Options
-
-### Option 1: Railway.app (Recommended)
-
-1. Go to [https://railway.app](https://railway.app)
-2. Sign in with GitHub
-3. Click **"New Project"** → **"Deploy from GitHub repo"**
-4. Select `Kashyap0319/Project-Leap`
-5. Set **Root Directory:** `backend/collector-service`
-
-**Environment Variables:**
-```
-LOGS_MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/logsdb
-META_MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/metadb
-JWT_SECRET=your-secret-key-here
+mongodb+srv://username:password@projectleap.dwucits.mongodb.net/logsdb?retryWrites=true&w=majority
 ```
 
-**Build Command:**
+**META_MONGO_URI:**
+```
+mongodb+srv://username:password@projectleap.dwucits.mongodb.net/metadb?retryWrites=true&w=majority
+```
+
+**Key points:**
+- Replace `username` and `password` with your MongoDB Atlas database user credentials
+- Cluster address: `projectleap.dwucits.mongodb.net`
+- Add `/logsdb` or `/metadb` **before** the `?` in the connection string
+- Both databases use the same cluster (different database names)
+- URL encode special characters in password if needed (`@` → `%40`, `#` → `%23`, etc.)
+- **Never commit connection strings with passwords to Git** - use environment variables only
+
+## Step 2: Deploy to Render
+
+### Option A: Using render.yaml (Recommended)
+
+1. Push your code to GitHub/GitLab/Bitbucket
+2. Go to Render Dashboard → New → Blueprint
+3. Connect your repository
+4. Render will automatically detect `render.yaml` and create both services
+
+### Option B: Manual Setup
+
+#### Backend Service (collector-service)
+
+1. Go to Render Dashboard → New → Web Service
+2. Connect your repository
+3. Configure:
+   - **Name**: `collector-service`
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `backend/collector-service/Dockerfile`
+   - **Docker Context**: `.` (root directory)
+   - **Build Command**: (leave empty, Dockerfile handles it)
+   - **Start Command**: (leave empty, Dockerfile handles it)
+
+4. Add Environment Variables:
+   - `SPRING_PROFILES_ACTIVE` = `production`
+   - `SERVER_PORT` = `8080`
+   - `LOGS_MONGO_URI` = `mongodb+srv://username:password@projectleap.dwucits.mongodb.net/logsdb?retryWrites=true&w=majority`
+     - ⚠️ Replace `username` and `password` with your MongoDB Atlas credentials
+     - Cluster: `projectleap.dwucits.mongodb.net`
+   - `META_MONGO_URI` = `mongodb+srv://username:password@projectleap.dwucits.mongodb.net/metadb?retryWrites=true&w=majority`
+     - ⚠️ Same cluster, different database name (`metadb` instead of `logsdb`)
+     - Use same `username` and `password` as above
+   - `JWT_SECRET` = (generate a secure random string, minimum 64 characters)
+   - `JAVA_OPTS` = `-Xmx512m -Xms256m`
+   - `LOG_LEVEL` = `INFO`
+
+#### Frontend Service (dashboard)
+
+1. Go to Render Dashboard → New → Web Service
+2. Connect your repository
+3. Configure:
+   - **Name**: `dashboard`
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `frontend/dashboard/Dockerfile`
+   - **Docker Context**: `.` (root directory)
+
+4. Add Environment Variables:
+   - `NODE_ENV` = `production`
+   - `NEXT_PUBLIC_API_BASE_URL` = `https://collector-service.onrender.com` (use your backend service URL)
+   - `PORT` = `3000`
+
+## Step 3: Generate JWT Secret
+
+Generate a secure JWT secret (64+ characters):
+
+**Linux/Mac:**
 ```bash
-./gradlew :backend:collector-service:bootJar
+openssl rand -hex 32
 ```
 
-**Start Command:**
-```bash
-java -jar build/libs/collector-service-*.jar
+**PowerShell (Windows):**
+```powershell
+-join ((48..57) + (65..90) + (97..122) | Get-Random -Count 64 | ForEach-Object {[char]$_})
 ```
 
-### Option 2: Render.com
+Or use an online generator: https://www.grc.com/passwords.htm
 
-1. Go to [https://render.com](https://render.com)
-2. Sign in with GitHub
-3. Click **"New +"** → **"Web Service"**
-4. Connect repository: `Kashyap0319/Project-Leap`
+## Step 4: Update Frontend API URL
 
-**Settings:**
-- **Root Directory:** `backend/collector-service`
-- **Build Command:** `./gradlew :backend:collector-service:bootJar`
-- **Start Command:** `java -jar build/libs/collector-service-*.jar`
+After the backend service is deployed, update the `NEXT_PUBLIC_API_BASE_URL` in the frontend service to point to your backend URL.
 
-**Environment Variables:**
-```
-LOGS_MONGO_URI=mongodb+srv://...
-META_MONGO_URI=mongodb+srv://...
-JWT_SECRET=your-secret-key
-```
+## Step 5: Verify Deployment
 
-### Option 3: Heroku
+1. Check backend health: `https://your-backend-url.onrender.com/actuator/health` (if actuator is enabled)
+2. Test frontend: `https://your-frontend-url.onrender.com`
+3. Sign up a new user through the frontend
+4. Test API endpoints
 
-1. Install Heroku CLI: `npm install -g heroku`
-2. Login: `heroku login`
-3. Create app: `heroku create your-app-name`
-4. Set buildpack: `heroku buildpacks:set heroku/gradle`
-5. Set environment variables:
-```bash
-heroku config:set LOGS_MONGO_URI=...
-heroku config:set META_MONGO_URI=...
-heroku config:set JWT_SECRET=...
-```
-6. Deploy: `git push heroku main`
+## Environment Variables Summary
 
-### Option 4: Docker Deployment
+### Backend (collector-service)
+- `LOGS_MONGO_URI` - MongoDB connection string for logs database
+- `META_MONGO_URI` - MongoDB connection string for metadata database
+- `JWT_SECRET` - Secret key for JWT token signing (64+ characters)
+- `SERVER_PORT` - Port for the Spring Boot server (default: 8080)
+- `SPRING_PROFILES_ACTIVE` - Spring profile (set to `production`)
+- `LOG_LEVEL` - Logging level (INFO for production)
 
-**Build Docker Image:**
-```bash
-docker build -t project-leap-backend .
-```
-
-**Run Container:**
-```bash
-docker run -p 8080:8080 \
-  -e LOGS_MONGO_URI=mongodb://... \
-  -e META_MONGO_URI=mongodb://... \
-  -e JWT_SECRET=... \
-  project-leap-backend
-```
-
----
-
-## MongoDB Atlas Setup
-
-### Step 1: Create Cluster
-
-1. Go to [https://www.mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
-2. Create a free cluster
-3. Create database user
-4. Whitelist IP addresses (0.0.0.0/0 for all)
-
-### Step 2: Create Databases
-
-Create two databases:
-- `logsdb` - For API logs
-- `metadb` - For metadata (users, alerts, incidents)
-
-### Step 3: Get Connection Strings
-
-1. Click **"Connect"** on your cluster
-2. Choose **"Connect your application"**
-3. Copy connection string
-4. Replace `<password>` with your database password
-
-**Example:**
-```
-mongodb+srv://username:password@cluster.mongodb.net/logsdb?retryWrites=true&w=majority
-mongodb+srv://username:password@cluster.mongodb.net/metadb?retryWrites=true&w=majority
-```
-
----
-
-## Complete Deployment Checklist
-
-### Frontend (Vercel)
-- [ ] Repository connected
-- [ ] Root directory set to `frontend/dashboard`
-- [ ] Environment variable `NEXT_PUBLIC_API_BASE_URL` set
-- [ ] Build successful
-- [ ] Site accessible
-
-### Backend (Railway/Render/Heroku)
-- [ ] Repository connected
-- [ ] Root directory set to `backend/collector-service`
-- [ ] Environment variables set:
-  - [ ] `LOGS_MONGO_URI`
-  - [ ] `META_MONGO_URI`
-  - [ ] `JWT_SECRET`
-- [ ] Build successful
-- [ ] Service running
-- [ ] Health check passing
-
-### MongoDB Atlas
-- [ ] Cluster created
-- [ ] Databases created (`logsdb`, `metadb`)
-- [ ] User created with read/write permissions
-- [ ] IP whitelisted
-- [ ] Connection strings obtained
-
-### Testing
-- [ ] Frontend loads correctly
-- [ ] Signup works
-- [ ] Login works
-- [ ] Dashboard displays data
-- [ ] API endpoints accessible
-- [ ] Logs can be created
-- [ ] Alerts appear
-
----
-
-## Post-Deployment
-
-### Update Frontend Environment Variable
-
-After backend is deployed, update Vercel environment variable:
-
-```
-NEXT_PUBLIC_API_BASE_URL=https://your-backend.railway.app
-```
-
-Redeploy frontend to pick up the new URL.
-
-### Test Deployment
-
-1. **Test Signup:**
-```bash
-curl -X POST https://your-backend.railway.app/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","email":"test@example.com","password":"password123"}'
-```
-
-2. **Test Login:**
-```bash
-curl -X POST https://your-backend.railway.app/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"password123"}'
-```
-
-3. **Test Frontend:**
-- Visit your Vercel URL
-- Signup/Login
-- Check dashboard
-
----
+### Frontend (dashboard)
+- `NEXT_PUBLIC_API_BASE_URL` - Backend API URL (e.g., `https://collector-service.onrender.com`)
+- `NODE_ENV` - Node environment (set to `production`)
+- `PORT` - Port for Next.js server (default: 3000)
 
 ## Troubleshooting
 
-### Frontend can't connect to backend
-- Check `NEXT_PUBLIC_API_BASE_URL` is correct
-- Verify backend is running
-- Check CORS configuration in backend
+### Backend Issues
 
-### Backend won't start
-- Check MongoDB connection strings
-- Verify environment variables
-- Check build logs for errors
+1. **Build fails**: Check that Gradle wrapper is executable and all dependencies are available
+2. **MongoDB connection fails**: Verify connection strings and network access (whitelist Render IPs in MongoDB Atlas)
+3. **JWT errors**: Ensure JWT_SECRET is set and is at least 64 characters
 
-### Database connection errors
-- Verify MongoDB Atlas IP whitelist
-- Check username/password
-- Verify database names match
+### Frontend Issues
 
----
+1. **API calls fail**: Verify `NEXT_PUBLIC_API_BASE_URL` points to the correct backend URL
+2. **Build fails**: Check Node.js version compatibility (requires Node 20+)
+3. **CORS errors**: Ensure backend CORS configuration allows your frontend domain
 
-## Quick Deploy Commands
+### MongoDB Atlas Network Access
 
-### Vercel (CLI)
-```bash
-cd frontend/dashboard
-npm i -g vercel
-vercel
-```
+If using MongoDB Atlas, add Render's IP ranges or allow access from anywhere (0.0.0.0/0) for development.
 
-### Railway (CLI)
-```bash
-npm i -g @railway/cli
-railway login
-railway init
-railway up
-```
+## Cost Considerations
 
----
+- Render's free tier includes:
+  - 750 hours/month of build time
+  - Services spin down after 15 minutes of inactivity (free tier)
+  - Consider upgrading to paid tier for always-on services
 
-**🎉 Your project is now live!**
+## Next Steps
+
+After deployment:
+1. Set up custom domains (optional)
+2. Configure SSL certificates (automatic with Render)
+3. Set up monitoring and alerts
+4. Configure database backups
 

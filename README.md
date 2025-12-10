@@ -1,871 +1,226 @@
-# 🚀 Project-Leap: API Monitoring & Observability Platform
+# 🚀 ProjectLeap – Real-Time API Monitoring Platform
 
-A complete full-stack platform for tracking, monitoring, and analyzing API requests across microservices in real-time.
-
----
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Setup & Installation](#-setup--installation)
-- [API Documentation](#-api-documentation)
-- [Deployment](#-deployment)
-- [Testing](#-testing)
+A full-stack platform to collect, monitor, and analyze API usage across microservices in real-time.
 
 ---
 
-## 📸 Screenshots
+### 📍 Objective
+This project aims to provide:
+✔ Centralized API monitoring  
+✔ Real-time log tracking  
+✔ Incident detection & alerting  
+✔ Developer-friendly dashboards  
+✔ Service performance insights  
 
-### Dashboard Overview
-![Dashboard](docs/screenshots/dashboard-overview.png)
-*Main dashboard showing KPIs, service metrics, success/error distribution, and top slow endpoints*
-
-### Services Analytics
-![Services Page](docs/screenshots/services-page.png)
-*Service-centric analytics with KPIs, latency trends, and endpoint performance metrics*
-
-### Live Traffic Logs
-![Logs Page](docs/screenshots/logs-page.png)
-*Real-time log stream with advanced filtering, search, and detailed request information*
-
-### Dashboard Metrics
-![Dashboard Metrics](docs/screenshots/dashboard-metrics.png)
-*Complete dashboard view with all widgets, charts, and real-time monitoring*
+> Built to fulfill all functionality requirements defined in the project documentation.
 
 ---
 
-## ✨ Features
+## ✨ Features (As per Requirements)
 
-### 🔐 Authentication & Security
-- ✅ JWT-based authentication
-- ✅ Secure signup/login endpoints
-- ✅ Protected API routes
-- ✅ Session management with cookies
-
-### 📊 API Tracking & Logging
-- ✅ Real-time API call tracking
-- ✅ Captures: endpoint, method, status, latency, request/response sizes
-- ✅ Batch log ingestion (`POST /api/logs/batch`)
-- ✅ Advanced filtering (service, endpoint, status, slow, broken, rate-limited)
-- ✅ Time-window filtering (1h, 24h, 7d)
-
-### 🚨 Alerting System
-- ✅ Auto-creates alerts for:
-  - Latency > 500ms (WARNING/CRITICAL)
-  - Status codes >= 500 (CRITICAL)
-  - Rate limit exceeded (MEDIUM)
-- ✅ Alert severity levels (LOW, MEDIUM, HIGH, CRITICAL)
-- ✅ Alert resolution tracking
-
-### 📈 Dashboard & Analytics
-- ✅ Real-time dashboard with auto-refresh
-- ✅ Service-centric analytics
-- ✅ KPIs: Slow APIs, Broken APIs, Rate Limit Hits
-- ✅ Latency trend charts
-- ✅ Top 5 slow endpoints
-- ✅ Error rate graphs
-- ✅ Success vs Error distribution
-- ✅ Live traffic table with filters
-
-### 🔧 Rate Limiting
-- ✅ Token-bucket rate limiter
-- ✅ Per-service rate limiting (100 req/sec default)
-- ✅ Configurable via API (`/api/rate-limit`)
-- ✅ Rate-limit-hit event logging
-- ✅ Non-blocking (requests continue, events logged)
-
-### 🗄️ Database Architecture
-- ✅ **Dual MongoDB Configuration**
-  - `logsdb`: Raw API logs, rate-limit events
-  - `metadb`: Users, alerts, incidents, rate-limit configs
-- ✅ Separate MongoTemplates and Transaction Managers
-- ✅ Optimistic locking for incident resolution
-
-### 🔄 Concurrency & Safety
-- ✅ Optimistic locking with `@Version` for incidents
-- ✅ Thread-safe rate limiter
-- ✅ Transaction management for dual DB operations
+| Category | Features | Status |
+|---------|----------|--------|
+| Logging | Track service, endpoint, method, status, latency, timestamp | ✔ |
+| Alerts | Trigger alerts on failures/slow requests | ✔ |
+| Incidents | Maintain history of critical failures | ✔ |
+| Authentication | JWT-secured Signup & Login | ✔ |
+| Dashboard | KPIs, charts, service overview | ✔ |
+| Database | Dual MongoDB (logsdb + metadb) | ✔ |
+| Filtering | Logs filter by service, status | ✔ |
+| Auto-Refresh | Live updates on dashboard | ✔ |
+| Frontend | Modern responsive UI | ✔ |
+| Evaluation Report | Testing proof included | ✔ |
 
 ---
 
-## 🏗️ Architecture
+## 🧩 System Architecture
 
-```
-┌─────────────────┐
-│  Next.js UI     │
-│  (Frontend)     │
-└────────┬────────┘
-         │ REST API
-         │ (JWT Auth)
-         ▼
-┌─────────────────┐
-│ Spring Boot     │
-│ Collector       │
-│ Service         │
-└─────┬───────┬───┘
-      │       │
-      ▼       ▼
-  ┌──────┐ ┌──────┐
-  │logsdb│ │metadb│
-  │Mongo │ │Mongo │
-  └──────┘ └──────┘
+```mermaid
+flowchart LR
+Client[Next.js Dashboard] -->|REST API| CollectorService[Spring Boot Collector]
+CollectorService --> LogsDB[(MongoDB logsdb)]
+CollectorService --> MetaDB[(MongoDB metadb)]
 ```
 
-### Data Flow
+🛠 Tech Stack
+Layer | Technology
+--- | ---
+Frontend | Next.js 14, TypeScript, TailwindCSS, Recharts
+Backend | Spring Boot 3 (Kotlin), JWT Auth
+Database | MongoDB Atlas
+Deployment | Localhost / Cloud ready
 
-1. **API Tracking Client** → Tracks API calls → Sends to Collector
-2. **Collector Service** → Receives logs → Stores in `logsdb`
-3. **Alert Engine** → Evaluates rules → Creates alerts in `metadb`
-4. **Dashboard** → Fetches data → Displays analytics
+🔐 Authentication Flow
+Register user → stored in meta database
 
----
+Login → returns JWT token
 
-## 🛠️ Tech Stack
+Protected endpoints require Authorization header
+Bearer <token>
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | Next.js 14, TypeScript, TailwindCSS, Recharts, React Hook Form, Zod |
-| **Backend** | Spring Boot 3.3.2, Kotlin 1.9.23, Spring Security, JWT |
-| **Database** | MongoDB (Dual: logsdb + metadb) |
-| **Build Tool** | Gradle 8.x |
-| **Authentication** | JWT (io.jsonwebtoken) |
-| **API Client** | Axios |
+📡 Collector Service APIs
+Auth
+Method | Endpoint | Description
+--- | --- | ---
+POST | /auth/signup | User Registration
+POST | /auth/login | Login + JWT
 
----
+Logs
+Method | Endpoint | Description
+--- | --- | ---
+POST | /api/logs | Push logs
+GET | /api/logs | Get logs list
 
-## 📁 Project Structure
+Incidents
+Method | Endpoint | Description
+--- | --- | ---
+GET | /api/incidents | Incident tracking
 
-```
-Project-Leap/
-├── backend/
-│   ├── collector-service/          # Main Spring Boot service
-│   │   ├── src/main/kotlin/
-│   │   │   ├── auth/               # Authentication
-│   │   │   ├── alerts/             # Alert management
-│   │   │   ├── incidents/          # Incident tracking
-│   │   │   ├── logs/                # Log ingestion
-│   │   │   ├── services/           # Service analytics
-│   │   │   ├── ratelimit/          # Rate limiting
-│   │   │   ├── tracking/           # API tracking client
-│   │   │   ├── config/             # Configuration (MongoDB, CORS)
-│   │   │   ├── security/           # JWT, Security config
-│   │   │   └── model/              # Data models
-│   │   └── src/main/resources/
-│   │       └── application.yml     # Configuration
-│   └── shared-contracts/           # Shared DTOs
-├── frontend/
-│   └── dashboard/                  # Next.js dashboard
-│       ├── app/                    # App router pages
-│       ├── components/            # UI components
-│       ├── lib/                    # API clients, utilities
-│       └── middleware.ts          # Route protection
-└── README.md
-```
+Alerts
+Method | Endpoint | Description
+--- | --- | ---
+GET | /api/alerts | Alerts for Slow/Error logs
 
----
+🧪 Testing (As required in submitted PDF)
+✔ API authentication test
+✔ Logs creation shown in logsdb
+✔ Alerts triggered by slow/error logs
+✔ Incident creation scenario validated
+✔ Screenshots included in report
 
-## 🚀 Setup & Installation
-
-### Prerequisites
-
-- Java 21+
-- Node.js 18+
-- MongoDB (local or Atlas)
-- Gradle 8.x
-
-### 1. Clone Repository
-
-```bash
-git clone https://github.com/Kashyap0319/Project-Leap.git
-cd Project-Leap
-```
-
-### 2. MongoDB Setup
-
-**Local MongoDB:**
-```bash
-# Start MongoDB (if not running)
-mongod
-```
-
-**MongoDB Atlas:**
-- Create two databases: `logsdb` and `metadb`
-- Get connection strings
-
-### 3. Backend Setup
-
+🔎 How to Run Locally
+Backend
 ```bash
 cd backend/collector-service
-
-# Set environment variables (or use application.yml)
-export LOGS_MONGO_URI=mongodb://localhost:27017/logsdb
-export META_MONGO_URI=mongodb://localhost:27017/metadb
-export JWT_SECRET=your-secret-key-here
-
-# Run backend
-cd ../..
-./gradlew :backend:collector-service:bootRun
+./gradlew bootRun
 ```
-
-Backend will start on **http://localhost:8080**
-
-### 4. Frontend Setup
-
+Frontend
 ```bash
-cd frontend/dashboard
-
-# Install dependencies
-npm install
-
-# Set environment variable (optional, defaults to localhost:8080)
-export NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
-
-# Run frontend
-npm run dev
-```
-
-Frontend will start on **http://localhost:3000**
-
-### 5. Configuration
-
-**Backend (`application.yml`):**
-```yaml
-server:
-  port: 8080
-
-mongo:
-  logs:
-    uri: mongodb://localhost:27017/logsdb
-  meta:
-    uri: mongodb://localhost:27017/metadb
-
-jwt:
-  secret: ${JWT_SECRET:your-secret-key}
-  expiration: 86400000
-
-rate-limit:
-  default: 100
-
-monitoring:
-  rateLimit:
-    default: 100
-```
-
----
-
-## 📡 API Documentation
-
-### Authentication
-
-#### Signup
-```http
-POST /auth/signup
-Content-Type: application/json
-
-{
-  "username": "testuser",
-  "email": "test@example.com",
-  "password": "password123"
-}
-```
-
-**Response:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiJ9..."
-}
-```
-
-#### Login
-```http
-POST /auth/login
-Content-Type: application/json
-
-{
-  "username": "testuser",
-  "password": "password123"
-}
-```
-
-**Response:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiJ9..."
-}
-```
-
-### Logs API
-
-#### Create Log (Single)
-```http
-POST /api/logs
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "service": "test-service",
-  "endpoint": "/api/test",
-  "method": "GET",
-  "statusCode": 200,
-  "latencyMs": 150,
-  "requestSize": 100,
-  "responseSize": 500,
-  "rateLimited": false
-}
-```
-
-#### Create Logs (Batch)
-```http
-POST /api/logs/batch
-Authorization: Bearer <token>
-Content-Type: application/json
-
-[
-  {
-    "service": "test-service",
-    "endpoint": "/api/test1",
-    "method": "GET",
-    "statusCode": 200,
-    "latencyMs": 150,
-    "requestSize": 100,
-    "responseSize": 500
-  },
-  {
-    "service": "test-service",
-    "endpoint": "/api/test2",
-    "method": "POST",
-    "statusCode": 500,
-    "latencyMs": 600,
-    "requestSize": 200,
-    "responseSize": 100
-  }
-]
-```
-
-#### Get Logs
-```http
-GET /api/logs?service=test-service&slow=true&size=10&page=0
-Authorization: Bearer <token>
-```
-
-**Query Parameters:**
-- `service` - Filter by service name
-- `endpoint` - Filter by endpoint
-- `status` - Filter by status code
-- `slow` - Show only slow APIs (>500ms)
-- `broken` - Show only broken APIs (5xx)
-- `rateLimited` - Show rate-limited requests
-- `errorsOnly` - Show errors (>=400)
-- `q` - Search query (searches service/endpoint/method)
-- `window` - Time window (1h, 24h, 7d)
-- `page` - Page number (default: 0)
-- `size` - Page size (default: 10)
-
-### Alerts API
-
-#### Get Alerts
-```http
-GET /api/alerts
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "...",
-    "service": "test-service",
-    "endpoint": "/api/slow",
-    "type": "LATENCY",
-    "severity": "WARNING",
-    "message": "High latency detected: 600ms",
-    "detectedAt": "2025-12-10T10:00:00Z",
-    "resolved": false
-  }
-]
-```
-
-#### Resolve Alert
-```http
-POST /api/alerts/{id}/resolve
-Authorization: Bearer <token>
-```
-
-### Incidents API
-
-#### Get Incidents
-```http
-GET /api/incidents
-Authorization: Bearer <token>
-```
-
-#### Resolve Incident (with Optimistic Locking)
-```http
-POST /api/incidents/{id}/resolve
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "version": 1
-}
-```
-
-**Response (on version mismatch):**
-```json
-{
-  "status": 409,
-  "error": "Optimistic locking failure",
-  "message": "Incident version mismatch..."
-}
-```
-
-### Services API
-
-#### Get Services Summary
-```http
-GET /api/services
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "name": "test-service",
-    "requests": 100,
-    "avgLatency": 250.5,
-    "errorRate": 0.05,
-    "latencyTrend": [
-      {
-        "timestamp": "2025-12-10T10:00:00Z",
-        "latencyMs": 150
-      }
-    ],
-    "endpoints": [
-      {
-        "path": "GET /api/test",
-        "method": "GET",
-        "avgLatency": 150.0,
-        "p95Latency": 200.0,
-        "errorRate": 0.0,
-        "requestCount": 10
-      }
-    ]
-  }
-]
-```
-
-#### Get Dashboard Widgets
-```http
-GET /api/services/widgets?window=24h
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-{
-  "slowApiCount": 5,
-  "brokenApiCount": 2,
-  "rateLimitViolations": 1,
-  "top5SlowEndpoints": [
-    {
-      "endpoint": "GET /api/slow",
-      "avgLatency": 600.0,
-      "count": 3
-    }
-  ],
-  "errorRateGraph": [
-    {
-      "timestamp": "2025-12-10T10",
-      "errorRate": 5.0,
-      "totalRequests": 100,
-      "errors": 5
-    }
-  ]
-}
-```
-
-### Rate Limit API
-
-#### Get Rate Limit Configs
-```http
-GET /api/rate-limit
-Authorization: Bearer <token>
-```
-
-#### Set Rate Limit Override
-```http
-POST /api/rate-limit
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "service": "test-service",
-  "limit": 120
-}
-```
-
-#### Get Rate Limit for Service
-```http
-GET /api/rate-limit/{service}
-Authorization: Bearer <token>
-```
-
----
-
-## 🌐 Deployment
-
-### Vercel Deployment (Frontend)
-
-1. **Install Vercel CLI:**
-```bash
-npm i -g vercel
-```
-
-2. **Deploy:**
-```bash
-cd frontend/dashboard
-vercel
-```
-
-3. **Set Environment Variables in Vercel Dashboard:**
-- `NEXT_PUBLIC_API_BASE_URL` - Your backend API URL
-
-### Backend Deployment
-
-**Option 1: Cloud (Railway, Render, Heroku)**
-```bash
-# Build JAR
-./gradlew :backend:collector-service:bootJar
-
-# Deploy JAR with environment variables:
-# LOGS_MONGO_URI, META_MONGO_URI, JWT_SECRET
-```
-
-**Option 2: Docker**
-```bash
-docker build -t project-leap-backend .
-docker run -p 8080:8080 \
-  -e LOGS_MONGO_URI=mongodb://... \
-  -e META_MONGO_URI=mongodb://... \
-  -e JWT_SECRET=... \
-  project-leap-backend
-```
-
----
-
-## 🧪 Testing
-
-### Quick API Tests (PowerShell)
-
-```powershell
-# 1. Signup
-$signup = Invoke-RestMethod -Uri "http://localhost:8080/auth/signup" `
-  -Method POST -ContentType "application/json" `
-  -Body '{"username":"testuser","email":"test@example.com","password":"password123"}'
-$token = $signup.token
-
-# 2. Create Test Logs
-$headers = @{ "Authorization" = "Bearer $token"; "Content-Type" = "application/json" }
-$log = @{
-  service = "test-service"
-  endpoint = "/api/test"
-  method = "GET"
-  statusCode = 200
-  latencyMs = 150
-  requestSize = 100
-  responseSize = 500
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri "http://localhost:8080/api/logs" `
-  -Method POST -Headers $headers -Body $log
-
-# 3. Get Logs
-Invoke-RestMethod -Uri "http://localhost:8080/api/logs?size=5" `
-  -Method GET -Headers $headers
-
-# 4. Get Alerts
-Invoke-RestMethod -Uri "http://localhost:8080/api/alerts" `
-  -Method GET -Headers $headers
-
-# 5. Get Services
-Invoke-RestMethod -Uri "http://localhost:8080/api/services" `
-  -Method GET -Headers $headers
-```
-
-### Automated Tests
-
-```bash
-# Run backend tests
-./gradlew :backend:collector-service:test
-
-# Run frontend tests
-cd frontend/dashboard
-npm test
-```
-
----
-
-## 🎯 Key Features Implemented
-
-### ✅ Assignment Requirements Met
-
-1. **API Tracking Client** ✅
-   - Reusable library for Spring Boot services
-   - Tracks all required fields
-   - Built-in rate limiter
-   - Batch sending support
-
-2. **Central Collector Service** ✅
-   - Dual MongoDB connections
-   - JWT authentication
-   - Alert auto-creation
-   - Incident management with optimistic locking
-   - Rate limiting system
-
-3. **Next.js Dashboard** ✅
-   - Login/Signup pages
-   - Protected routes
-   - Logs explorer with filters
-   - Dashboard widgets
-   - Service analytics
-   - Alert viewer
-   - Incident resolution UI
-
-4. **Rate Limiting** ✅
-   - Token-bucket algorithm
-   - Per-service limits (100 req/sec default)
-   - Configurable via API
-   - Non-blocking behavior
-
-5. **Concurrency Safety** ✅
-   - Optimistic locking for incidents
-   - Version-based conflict detection
-   - Transaction management
-
----
-
-## 📊 Database Schemas
-
-### Logs Database (`logsdb`)
-
-**Collection: `logs`**
-```kotlin
-{
-  id: String,
-  service: String,
-  endpoint: String,
-  method: String,
-  statusCode: Int,
-  latencyMs: Long,
-  requestSize: Long,
-  responseSize: Long,
-  rateLimited: Boolean,
-  timestamp: Instant
-}
-```
-
-### Metadata Database (`metadb`)
-
-**Collection: `users`**
-```kotlin
-{
-  id: String,
-  username: String,
-  email: String,
-  password: String (hashed),
-  role: Role (USER/ADMIN)
-}
-```
-
-**Collection: `alerts`**
-```kotlin
-{
-  id: String,
-  service: String,
-  endpoint: String,
-  type: String (LATENCY/ERROR/RATE_LIMIT),
-  severity: String (LOW/MEDIUM/HIGH/CRITICAL),
-  message: String,
-  detectedAt: Instant,
-  resolved: Boolean,
-  resolvedAt: Instant?
-}
-```
-
-**Collection: `incidents`**
-```kotlin
-{
-  id: String,
-  alertId: String,
-  service: String,
-  endpoint: String,
-  type: String,
-  severity: String,
-  message: String,
-  firstSeen: Instant,
-  lastSeen: Instant,
-  occurrences: Int,
-  resolved: Boolean,
-  version: Long (for optimistic locking)
-}
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables
-
-**Backend:**
-- `LOGS_MONGO_URI` - MongoDB URI for logs database
-- `META_MONGO_URI` - MongoDB URI for metadata database
-- `JWT_SECRET` - Secret key for JWT tokens
-
-**Frontend:**
-- `NEXT_PUBLIC_API_BASE_URL` - Backend API URL (default: http://localhost:8080)
-
----
-
-## 🚀 Quick Start
-
-```bash
-# 1. Start MongoDB
-mongod
-
-# 2. Start Backend (Terminal 1)
-cd backend
-../gradlew :backend:collector-service:bootRun
-
-# 3. Start Frontend (Terminal 2)
 cd frontend/dashboard
 npm install
 npm run dev
+```
+Open UI ➜ http://localhost:3000
+Backend ➜ http://localhost:8080
 
-# 4. Open Browser
-# http://localhost:3000
+🧠 Future Scope
+- WebSockets for real-time updates
+- Email/SMS alerts
+- Role-based access
+- Log export options
+- AI-based reliability scoring
+
+👨‍💻 Developer
+Name | Role
+--- | ---
+Shreyansh Kashyap | Full Stack Developer
+# Project Leap – API Monitoring & Observability Platform
+
+## Vision
+Deliver a plug-in observability layer for microservices that captures every API call, enforces per-service rate awareness, detects slow/broken endpoints in real time, and exposes all of it through a secure dashboard backed by dual MongoDB stores.
+
+## What we built
+- **API Tracking Client (Kotlin)**: reusable starter for Spring Boot services with a servlet filter and OkHttp interceptor that records endpoint, method, status, latency, timestamp, request/response sizes, service name, and rate-limit hits, then batches to the collector over REST.
+- **Central Collector (Spring Boot + Kotlin)**: JWT-secured ingestion at `/api/logs/batch`, dual Mongo connections (logs + metadata), alerting rules (latency > 500ms, 5xx, rate-limit exceeded), incidents with optimistic locking, rate-limit override APIs, and service analytics.
+- **Next.js Dashboard**: login/signup, protected routes, logs explorer with filters, widgets for slow/broken/rate-limited counts, alerts list, service analytics, and incident resolution UI.
+
+## Architecture (textual)
+- Services emit `LogEvent` → collector `/api/logs/batch` (bearer JWT).
+- Collector writes raw traffic to the **logs** Mongo; metadata (users, rate-limit configs, alerts, incidents) to the **meta** Mongo. Two `MongoTemplate` beans + two `MongoTransactionManager`s isolate the stores.
+- Alert engine evaluates each log (latency, status, rateLimited) and persists alerts/incidents in meta DB; incident resolves use optimistic locking to protect concurrent writes.
+- Dashboard consumes collector REST APIs (`/api/logs`, `/api/alerts`, `/api/incidents`, `/api/rate-limit`, `/api/services`).
+- Rate limiter: token-bucket default 100 rps per service; overrides are stored in meta DB and pulled by the tracker on startup. Exceeding the limit tags the log (`rateLimited=true`) but does not block the request.
+
+## Data model highlights
+- **logs (logs DB)**: service, endpoint, method, status, latencyMs, rateLimited, timestamp, requestId, requestSizeBytes, responseSizeBytes.
+- **meta DB**: users; rate_limit_configs; alerts (`type`, `message`, `service`, `endpoint`, `triggeredAt`, `severity` exposed as `detectedAt`); incidents with `@Version` for optimistic locking and resolve audit.
+
+## API surface (collector)
+- `POST /auth/signup`, `POST /auth/login` → JWT.
+- `POST /api/logs/batch` (auth) → list of `LogEvent`.
+- `GET /api/logs` (auth) → filters for service, endpoint, status (code or bucket), slow, broken, rateLimited, errorsOnly, q, window, startTs, endTs, paging.
+- `GET /api/alerts` (auth) → filter by service/endpoint/type, limit.
+- `GET /api/incidents` (auth) → open incidents; `PATCH|POST /api/incidents/{id}/resolve` with `version`.
+- `GET|POST /api/rate-limit` (auth) → list/upsert per-service overrides.
+- `GET /api/services` (auth) → aggregates (requests, avg latency, error rate, slow/error counts) over 1h/24h/7d windows.
+
+## Running locally
+- **Backend**: set env vars `LOGS_MONGO_URI`, `META_MONGO_URI`, `JWT_SECRET` (no hardcoded credentials) then run `./gradlew :backend:collector-service:bootRun`.
+- **Frontend**: `cd frontend/dashboard && npm install && npm run dev` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080` (or your host).
+- **Tracker starter**: add the `kotlin-tracker` module to your Spring Boot service and configure `monitoring.serviceName`, `monitoring.collectorUrl`, `monitoring.jwtSecret`; rate-limit defaults to 100 rps unless overridden via collector `/api/rate-limit`.
+
+### Required environment (example)
+- `LOGS_MONGO_URI=mongodb://localhost:27017/logsdb`
+- `META_MONGO_URI=mongodb://localhost:27017/metadb`
+- `JWT_SECRET=<generate-64+ hex or base64>`
+- `NEXT_PUBLIC_API_BASE_URL=http://localhost:8080`
+
+If using Atlas, set the URIs to your clusters; ensure the user has rights on both databases. No credentials are checked into the repo.
+
+### Quick API testing (curl or PowerShell)
+- Signup: `curl -X POST http://localhost:8080/auth/signup -H "Content-Type: application/json" -d '{"username":"you@example.com","password":"Passw0rd!"}'`
+- Login (capture `token`): `curl -X POST http://localhost:8080/auth/login -H "Content-Type: application/json" -d '{"username":"you@example.com","password":"Passw0rd!"}'`
+- Post logs batch:
+	```bash
+	curl -X POST http://localhost:8080/api/logs/batch \
+		-H "Authorization: Bearer $TOKEN" \
+		-H "Content-Type: application/json" \
+		-d '[{"service":"collector","endpoint":"/demo","status":200,"latencyMs":120,"rateLimited":false,"timestamp":1700000000000,"requestId":"req-1","method":"GET","requestBytes":123,"responseBytes":456}]'
+	```
+- Query logs: `curl -H "Authorization: Bearer $TOKEN" 'http://localhost:8080/api/logs?service=collector&endpoint=/demo&size=5'`
+- Alerts: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/alerts`
+- Rate-limit override upsert: `curl -X POST http://localhost:8080/api/rate-limit -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"service":"collector","limitPerSecond":20,"burst":40}'`
+- Incidents: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/incidents`
+
+### Endpoint cheat sheet (all require `Authorization: Bearer <token>` unless noted)
+- `POST /auth/signup` — body `{ "username": "you@example.com", "password": "Passw0rd!" }`
+- `POST /auth/login` — body `{ "username": "you@example.com", "password": "Passw0rd!" }`
+- `POST /api/logs/batch` — body `[{"service":"svc","endpoint":"/path","status":200,"latencyMs":100,"rateLimited":false,"timestamp":1700000000000}]`
+- `GET /api/logs` — query filters: `service`, `endpoint`, `status` (code or 2xx/4xx/5xx/429), `slow`, `broken`, `rateLimited`, `errorsOnly`, `q`, `window`, `startTs`, `endTs`, `page`, `size`.
+- `GET /api/alerts` — optional `service`, `endpoint`, `type`, `limit`.
+- `GET /api/incidents` — list open incidents; `PATCH|POST /api/incidents/{id}/resolve` with `{ "version": <int> }`.
+- `GET /api/rate-limit` — list overrides; `POST /api/rate-limit` upsert `{ "service": "svc", "limitPerSecond": 100, "burst": 200 }`.
+- `GET /api/services` — aggregates; query `window` = `1h|24h|7d`.
+
+## Outcome / verification
+- Smoke tests executed: signup/login, log batch ingest, log query, alerts list, rate-limit upsert/list, incidents fetch, services aggregation (empty until data accrues). New logs appear via `/api/logs` after posting a batch.
+- Concurrency protection: incident resolve uses optimistic locking with `@Version`; rate-limit upsert and user signup run under meta transactions.
+
+## Repository layout (cleaned)
+- `backend/` – collector service, tracker starter, shared contracts.
+- `frontend/dashboard/` – Next.js app router UI.
+- `docs/` – assignment brief (`Assignment-API-Monitoring-Observability.pdf`).
+- Root: Gradle build files, Docker/Docker Compose, scripts, env sample.
+
+```
+.
+├─backend
+│  ├─collector-service
+│  ├─kotlin-tracker
+│  └─shared-contracts
+├─frontend
+│  └─dashboard
+├─docs
+│  └─Assignment-API-Monitoring-Observability.pdf
+├─scripts
+├─docker-compose.yml
+├─Dockerfile
+├─build.gradle.kts
+├─settings.gradle.kts
+├─gradle/
+├─gradlew
+├─gradlew.bat
+├─vercel.json
+├─.env.example
+└─README.md
 ```
 
----
+## Key decisions
+- Dual Mongo via two templates/transaction managers to satisfy separation and allow independent scaling.
+- Token-bucket limiter with non-blocking behavior to avoid impacting production traffic while still surfacing violations.
+- MongoTemplate for flexible aggregations; optimistic locking over incidents to keep resolves safe under concurrent developers.
 
-## 📝 API Tracking Client Usage
-
-```kotlin
-// In your Spring Boot service
-val trackingClient = ApiTrackingClient.builder()
-    .collectorUrl("http://localhost:8080")
-    .serviceName("my-service")
-    .jwtSecret("your-secret")
-    .rateLimit(100L) // 100 req/sec
-    .build()
-
-// Track API call
-trackingClient.trackApiCall(
-    endpoint = "/api/users",
-    method = "GET",
-    statusCode = 200,
-    latencyMs = 150,
-    requestSize = 100,
-    responseSize = 500
-)
-```
-
----
-
-## 🎨 Dashboard Features
-
-### Main Dashboard
-- **Metrics Cards**: Slow APIs, Broken APIs, Rate Limit Hits, Total APIs
-- **Service KPIs**: Per-service analytics cards
-- **Charts**: Success vs Error pie chart, Top 5 slow endpoints bar chart
-- **Error Rate Trend**: Hourly error rate graph
-- **Live Traffic Table**: Real-time logs with filters
-- **Alerts Panel**: Recent alerts with severity badges
-- **Incidents Panel**: Open incidents with resolve button
-
-### Services Page
-- **Service Selection**: Click to view service analytics
-- **KPIs**: Requests, Avg Latency, Error Rate
-- **Latency Trend Chart**: Time-series latency data
-- **Endpoints Table**: Per-endpoint performance metrics
-
-### Logs Page
-- **Advanced Filters**: Service, Method, Status, Time window
-- **Search**: Quick search across logs
-- **Pagination**: Navigate through large datasets
-
----
-
-## 🔐 Security
-
-- JWT-based authentication
-- Password hashing with BCrypt
-- Protected API routes
-- CORS configuration
-- Input validation
-- SQL injection protection (MongoDB)
-
----
-
-## 📈 Performance
-
-- Handles 50+ concurrent log writes
-- Efficient MongoDB queries with indexes
-- Batch log ingestion
-- Auto-refresh with configurable intervals
-- Optimized dashboard rendering
-
----
-
-## 🐛 Troubleshooting
-
-### Backend won't start
-- Check MongoDB is running
-- Verify environment variables
-- Check port 8080 is available
-
-### Frontend can't connect to backend
-- Verify `NEXT_PUBLIC_API_BASE_URL` is correct
-- Check CORS configuration
-- Verify backend is running
-
-### No data showing in dashboard
-- Create test logs via API
-- Check MongoDB connections
-- Verify JWT token is valid
-
----
-
-## 📄 License
-
-This project is part of an academic assignment.
-
----
-
-## 👨‍💻 Developer
-
-**Shreyansh Kashyap**  
-Full Stack Developer
-
----
-
-## 🎉 Project Status
-
-✅ **FULLY FUNCTIONAL** - All features implemented and tested
-
-- ✅ Dual MongoDB configuration
-- ✅ Rate limiting system
-- ✅ API tracking client
-- ✅ Alert auto-creation
-- ✅ Dashboard with real-time updates
-- ✅ Service analytics
-- ✅ Incident management
-- ✅ JWT authentication
-- ✅ All assignment requirements met
-
----
-
-**Ready for production deployment! 🚀**
+## Future extensions
+- Add background aggregation for `/api/services` to reduce query-time work.
+- Wire alert notifications to email/Slack.
+- Add synthetic load tests to validate 50+ concurrent ingest batches in CI.

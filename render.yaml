@@ -4,6 +4,8 @@ services:
     name: collector-service
     dockerfilePath: ./backend/collector-service/Dockerfile
     dockerContext: .
+    buildCommand: ""
+    startCommand: ""
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: production
@@ -28,6 +30,8 @@ services:
     name: dashboard
     dockerfilePath: ./frontend/dashboard/Dockerfile
     dockerContext: .
+    buildCommand: ""
+    startCommand: ""
     envVars:
       - key: NODE_ENV
         value: production

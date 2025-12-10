@@ -23,12 +23,20 @@ class SecurityConfig(
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
+            .httpBasic { it.disable() }
+            .formLogin { it.disable() }
             .exceptionHandling { it.authenticationEntryPoint(jwtAuthEntryPoint) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                it.requestMatchers("/auth/**", "/api/auth/**").permitAll()
-                    .anyRequest().authenticated()
+                it.requestMatchers(
+                    "/auth/signup",
+                    "/auth/login",
+                    "/api/v1/auth/signup",
+                    "/api/v1/auth/login"
+                ).permitAll()
+                .anyRequest().authenticated()
             }
+            .cors { }
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()

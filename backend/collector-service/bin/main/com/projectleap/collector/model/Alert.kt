@@ -8,6 +8,11 @@ import java.time.Instant
 data class Alert(
     @Id val id: String? = null,
     val message: String,
-    val createdAt: Instant = Instant.now(),
-    val resolved: Boolean = false
+    val service: String? = null,
+    val endpoint: String? = null,
+    val type: String, // "LATENCY", "ERROR", "RATE_LIMIT"
+    val severity: String, // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+    val detectedAt: Instant = Instant.now(),
+    val resolved: Boolean = false,
+    val resolvedAt: Instant? = null
 )

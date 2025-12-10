@@ -2,8 +2,11 @@
 
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
+import { setSession, getToken, upsertUser, getSession, clearSession } from "./session";
 import { api } from "./api";
-import { clearSession, getSession, getToken, isExpired, setSession, upsertUser } from "./session";
+
+// Re-export session utilities for backward compatibility
+export { getSession, clearSession, isExpired } from "./session";
 
 
 export type AuthUser = {
@@ -61,13 +64,48 @@ async function authenticate(path: string, body: Record<string, string>): Promise
   }
 }
 
-export async function login(email: string, password: string) {
-  return authenticate("/auth/login", { email, password });
-}
+const AUTH_BASE_URL = "http://localhost:8080/auth";
 
-export async function signup(username: string, email: string, password: string) {
-  return authenticate("/auth/signup", { username, email, password });
-}
+export const signup = async (username: string, email: string, password: string) => {
+  const response = await axios.post(`${AUTH_BASE_URL}/signup`, { username, email, password }, {
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+  if (response.data.token) {
+    setSession(response.data.token, { email });
+  }
+  return response.data;
+};
+
+export const login = async (username: string, password: string) => {
+  // Backend expects username and password
+  if (!username || !password) {
+    throw new Error("Username and password are required");
+  }
+  try {
+    const response = await axios.post(`${AUTH_BASE_URL}/login`, { username: username.trim(), password: password.trim() }, {
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    if (response.data.token) {
+      setSession(response.data.token, { email: username });
+    }
+    return response.data;
+  } catch (error: any) {
+    // Better error handling for validation errors
+    if (error.response?.data?.errors) {
+      const errors = error.response.data.errors as Array<{ field: string; message: string }>;
+      const errorMessage = errors.map(e => e.message).join(", ");
+      throw new Error(errorMessage);
+    }
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw error;
+  }
+};
 
 export async function fetchMe(): Promise<AuthUser> {
   const token = getToken();
@@ -86,13 +124,7 @@ export async function fetchMe(): Promise<AuthUser> {
 
 export function requireAuth(): string | null {
   if (typeof window === "undefined") return null;
-  const session = getSession();
-  if (!session) return null;
-  if (isExpired(session.token)) {
-    clearSession();
-    return null;
-  }
-  return session.token;
+  return getToken();
 }
 
 export function currentUser(): AuthUser | null {

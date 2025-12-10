@@ -27,20 +27,25 @@ class JwtAuthFilter(
             return
         }
 
-        val jwt = authHeader.substring(7)
-        val username = jwtService.extractUsername(jwt)
+        try {
+            val jwt = authHeader.substring(7)
+            val username = jwtService.extractUsername(jwt)
 
-        if (username.isNotBlank() && SecurityContextHolder.getContext().authentication == null) {
-            val userDetails = userDetailsService.loadUserByUsername(username)
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                val authToken = UsernamePasswordAuthenticationToken(
-                    userDetails,
-                    null,
-                    userDetails.authorities
-                )
-                authToken.details = WebAuthenticationDetailsSource().buildDetails(request)
-                SecurityContextHolder.getContext().authentication = authToken
+            if (username.isNotBlank() && SecurityContextHolder.getContext().authentication == null) {
+                val userDetails = userDetailsService.loadUserByUsername(username)
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    val authToken = UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.authorities
+                    )
+                    authToken.details = WebAuthenticationDetailsSource().buildDetails(request)
+                    SecurityContextHolder.getContext().authentication = authToken
+                }
             }
+        } catch (e: Exception) {
+            // Invalid token - continue filter chain, SecurityContext will remain unauthenticated
+            // Spring Security will handle unauthorized access based on SecurityConfig rules
         }
 
         filterChain.doFilter(request, response)

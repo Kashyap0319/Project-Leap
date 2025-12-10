@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { useTheme } from "next-themes";
 
 const schema = z.object({
-  email: z.string().email("Valid email required"),
+  username: z.string().min(1, "Username is required"),
   password: z.string().min(6, "Minimum 6 characters"),
 });
 
@@ -35,15 +35,23 @@ function LoginContent() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      // Always send email as username
-      const { token } = await login(values.email, values.password);
+      // Validate inputs are not empty
+      if (!values.username?.trim() || !values.password?.trim()) {
+        toast.error("Username and password are required");
+        return;
+      }
+      const { token } = await login(values.username.trim(), values.password.trim());
       toast.success("Welcome back", { description: "Redirecting to dashboard" });
       if (token) {
-        router.push(next);
+        // Use window.location for full page reload so middleware can read cookie
+        setTimeout(() => {
+          window.location.href = next;
+        }, 200);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
       toast.error(message);
+      console.error("Login error:", err);
     }
   };
 
@@ -84,9 +92,9 @@ function LoginContent() {
           <CardContent>
             <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
-                <Input placeholder="you@company.com" type="email" autoComplete="email" {...register("email")} />
-                {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+                <label className="text-sm font-medium">Username</label>
+                <Input placeholder="Enter your username" type="text" autoComplete="username" {...register("username")} />
+                {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Password</label>

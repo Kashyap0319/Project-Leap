@@ -104,14 +104,38 @@ export default function ServicesPage() {
               <CardDescription>Recent performance for {service.name}</CardDescription>
             </CardHeader>
             <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={service.latencyTrend}>
-                  <XAxis dataKey="timestamp" hide />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip labelFormatter={(v) => new Date(v as string).toLocaleString()} />
-                  <Line type="monotone" dataKey="latencyMs" stroke="#38bdf8" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              {service.latencyTrend && service.latencyTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={service.latencyTrend}>
+                    <XAxis 
+                      dataKey="timestamp" 
+                      tickFormatter={(v) => {
+                        try {
+                          return new Date(v as string).toLocaleTimeString();
+                        } catch {
+                          return v as string;
+                        }
+                      }}
+                    />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip 
+                      labelFormatter={(v) => {
+                        try {
+                          return new Date(v as string).toLocaleString();
+                        } catch {
+                          return v as string;
+                        }
+                      }}
+                      formatter={(value: number) => `${value} ms`}
+                    />
+                    <Line type="monotone" dataKey="latencyMs" stroke="#38bdf8" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  No latency trend data available
+                </div>
+              )}
             </CardContent>
           </Card>
 

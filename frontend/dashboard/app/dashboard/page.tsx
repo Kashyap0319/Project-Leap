@@ -30,51 +30,6 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<any[] | null>(null);
   const [incidents, setIncidents] = useState<any[] | null>(null);
   const [services, setServices] = useState<any[] | null>(null);
-    // Mock fallback for logs
-    useEffect(() => {
-      if (!logs) {
-        setLogs([
-          {
-            id: "1",
-            service: "test-service",
-            endpoint: "/home",
-            method: "GET",
-            status: 200,
-            latencyMs: 120,
-            timestamp: new Date().toISOString()
-          }
-        ]);
-      }
-    }, [logs]);
-
-    // Mock fallback for alerts
-    useEffect(() => {
-      if (!alerts) {
-        setAlerts([
-          {
-            id: "1",
-            service: "payment-service",
-            message: "Slow response detected",
-            severity: "HIGH",
-            timestamp: new Date().toISOString()
-          }
-        ]);
-      }
-    }, [alerts]);
-
-    // Mock fallback for services
-    useEffect(() => {
-      if (!services) {
-        setServices([
-          {
-            name: "test-service",
-            totalRequests: 12,
-            errors: 3,
-            avgLatency: 221
-          }
-        ]);
-      }
-    }, [services]);
   const [user, setUser] = useState(null as any);
   const [muteAlerts, setMuteAlerts] = useState(false);
   const [liveAsc, setLiveAsc] = useState(false);

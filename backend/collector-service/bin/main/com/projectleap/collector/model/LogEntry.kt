@@ -7,12 +7,13 @@ import java.time.Instant
 @Document(collection = "logs")
 data class LogEntry(
     @Id val id: String? = null,
-    val service: String,
-    val endpoint: String,
-    val method: String,
-    val statusCode: Int,
-    val latencyMs: Long,
-    val requestSize: Long,
-    val responseSize: Long,
-    val timestamp: Instant = Instant.now()
+    val service: String? = null,
+    val endpoint: String? = null,
+    val method: String? = null,
+    val statusCode: Int? = null,
+    val latencyMs: Long? = null,
+    val requestSize: Long? = null,
+    val responseSize: Long? = null,
+    val rateLimited: Boolean? = false,
+    val timestamp: Instant? = Instant.now()
 )

@@ -34,7 +34,10 @@ export default function SignupPage() {
     try {
       await signup(values.username, values.email, values.password);
       toast.success("Account created", { description: "Redirecting to dashboard" });
-      router.push("/dashboard");
+      // Use window.location for full page reload so middleware can read cookie
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 200);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Signup failed";
       toast.error(message);

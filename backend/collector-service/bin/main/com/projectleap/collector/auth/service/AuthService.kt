@@ -17,21 +17,21 @@ class AuthService(
 ) {
 
     fun signup(request: SignupRequest): String {
-        if (userRepository.existsByUsername(request.username)) {
+        if (userRepository.findByUsername(request.username).isPresent) {
             throw IllegalArgumentException("Username already exists")
         }
-        if (userRepository.existsByEmail(request.email)) {
+        if (userRepository.findByEmail(request.email).isPresent) {
             throw IllegalArgumentException("Email already exists")
         }
 
         val user = User(
-            _username = request.username,
+            username = request.username,
             email = request.email,
             password = passwordEncoder.encode(request.password),
             role = Role.USER
         )
-        userRepository.save(user)
-        return "User registered successfully"
+        val savedUser = userRepository.save(user)
+        return jwtService.generateToken(savedUser)
     }
 
     fun login(request: LoginRequest): String {

@@ -1,0 +1,475 @@
+{
+	"info": {
+		"name": "Project-Leap API Tests",
+		"description": "Complete API test suite for Project-Leap Collector Service",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{authToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Signup",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('authToken', jsonData.token);",
+									"    pm.test('Token received', function () {",
+									"        pm.expect(jsonData.token).to.exist;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/signup",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "signup"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('authToken', jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Logs",
+			"item": [
+				{
+					"name": "Create Single Log",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service\": \"user-service\",\n  \"endpoint\": \"/api/users\",\n  \"method\": \"GET\",\n  \"statusCode\": 200,\n  \"latencyMs\": 150,\n  \"requestSize\": 1024,\n  \"responseSize\": 2048,\n  \"rateLimited\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Log - High Latency (Alert Test)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service\": \"user-service\",\n  \"endpoint\": \"/api/users/slow\",\n  \"method\": \"GET\",\n  \"statusCode\": 200,\n  \"latencyMs\": 600,\n  \"requestSize\": 1024,\n  \"responseSize\": 2048,\n  \"rateLimited\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Log - 5xx Error (Alert Test)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service\": \"user-service\",\n  \"endpoint\": \"/api/users/error\",\n  \"method\": \"GET\",\n  \"statusCode\": 500,\n  \"latencyMs\": 100,\n  \"requestSize\": 1024,\n  \"responseSize\": 512,\n  \"rateLimited\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Log - Rate Limited (Alert Test)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service\": \"user-service\",\n  \"endpoint\": \"/api/users\",\n  \"method\": \"GET\",\n  \"statusCode\": 200,\n  \"latencyMs\": 150,\n  \"requestSize\": 1024,\n  \"responseSize\": 2048,\n  \"rateLimited\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logs",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/logs?page=0&size=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Logs - Filter by Service",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/logs?service=user-service&page=0&size=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"],
+							"query": [
+								{
+									"key": "service",
+									"value": "user-service"
+								},
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Logs - Filter Slow (Missing)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/logs?slow=true",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"],
+							"query": [
+								{
+									"key": "slow",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Logs - Filter Broken (Missing)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/logs?broken=true",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs"],
+							"query": [
+								{
+									"key": "broken",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Batch Logs (Missing Endpoint)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[\n  {\n    \"service\": \"user-service\",\n    \"endpoint\": \"/api/users\",\n    \"method\": \"GET\",\n    \"statusCode\": 200,\n    \"latencyMs\": 150,\n    \"requestSize\": 1024,\n    \"responseSize\": 2048,\n    \"rateLimited\": false\n  },\n  {\n    \"service\": \"order-service\",\n    \"endpoint\": \"/api/orders\",\n    \"method\": \"POST\",\n    \"statusCode\": 201,\n    \"latencyMs\": 300,\n    \"requestSize\": 2048,\n    \"responseSize\": 4096,\n    \"rateLimited\": false\n  }\n]"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/logs/batch",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "logs", "batch"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Alerts",
+			"item": [
+				{
+					"name": "Get Active Alerts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/alerts",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "alerts"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Resolve Alert",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/alerts/:alertId/resolve",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "alerts", ":alertId", "resolve"],
+							"variable": [
+								{
+									"key": "alertId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Incidents",
+			"item": [
+				{
+					"name": "Get All Incidents",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/incidents",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "incidents"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Resolve Incident with Version",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"version\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/incidents/:incidentId/resolve",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "incidents", ":incidentId", "resolve"],
+							"variable": [
+								{
+									"key": "incidentId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Services",
+			"item": [
+				{
+					"name": "Get Services Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/services",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "services"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Dashboard Widgets (Missing)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/services/widgets?window=24h",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "services", "widgets"],
+							"query": [
+								{
+									"key": "window",
+									"value": "24h"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Rate Limiting (Missing)",
+			"item": [
+				{
+					"name": "Get Rate Limit Configs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/rate-limit",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "rate-limit"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Rate Limit Override",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service\": \"user-service\",\n  \"limit\": 200\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/rate-limit",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "rate-limit"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
+

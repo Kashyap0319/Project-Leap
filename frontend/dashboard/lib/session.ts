@@ -31,10 +31,12 @@ export function setSession(token: string, user?: { email: string; name?: string 
   const payload: StoredSession = { token, user };
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    const isHttps = window.location.protocol === "https:";
-    const secureFlag = isHttps ? "Secure" : "";
-    const parts = [`${COOKIE_KEY}=${token}`, "path=/", "SameSite=Lax", secureFlag].filter(Boolean);
-    document.cookie = parts.join("; ");
+    // Set cookie using js-cookie for better compatibility
+    Cookies.set(COOKIE_KEY, token, { 
+      path: "/", 
+      sameSite: "lax",
+      expires: 7 // 7 days
+    });
   }
 }
 

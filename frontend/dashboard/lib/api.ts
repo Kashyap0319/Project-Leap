@@ -1,27 +1,26 @@
 "use client";
 
 import axios from "axios";
-import { clearSession, getToken, isExpired } from "./session";
+import { getToken } from "./session";
 
+const axiosInstance = axios.create({
+  baseURL: "http://localhost:8080",
+});
 
-// Mock API for local development
-export const api = {
-  post: async (path: string, payload: any) => {
-    if (path === "/auth/signup") {
-      // Simulate successful signup with token
-      return { data: { token: "mock-jwt-token", message: "User registered successfully", user: { email: payload.username, fullName: "Test User" } } };
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token && token !== "null" && token !== "undefined") {
+      config.headers = config.headers || {};
+      config.headers["Authorization"] = `Bearer ${token}`;
+    } else {
+      if (config.headers && config.headers["Authorization"]) {
+        delete config.headers["Authorization"];
+      }
     }
-    if (path === "/auth/login") {
-      // Simulate successful login with mock token
-      return { data: { token: "mock-jwt-token", user: { email: payload.username, fullName: "Test User" } } };
-    }
-    // Add more mock endpoints as needed
-    return { data: {} };
+    return config;
   },
-  get: async (path: string) => {
-    // Simulate mock GET responses
-    return { data: {} };
-  },
-};
+  (error) => Promise.reject(error)
+);
 
-export const withToken = () => "mock-jwt-token";
+export const api = axiosInstance;

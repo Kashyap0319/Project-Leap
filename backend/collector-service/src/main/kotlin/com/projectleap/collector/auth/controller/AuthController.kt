@@ -15,8 +15,8 @@ class AuthController(
 
     @PostMapping("/signup")
     fun signup(@Valid @RequestBody request: SignupRequest): ResponseEntity<Map<String, String>> {
-        val msg = authService.signup(request)
-        return ResponseEntity.ok(mapOf("message" to msg))
+        val token = authService.signup(request)
+        return ResponseEntity.ok(mapOf("token" to token))
     }
 
     @PostMapping("/login")

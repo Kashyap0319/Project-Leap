@@ -16,3 +16,21 @@ security:
   jwt:
     secret: ${JWT_SECRET:7fbdc81f7e5a46b8a9f5258a9a6ec8da58be0e337a0cc8f5c19a43512e8c7f26}
     issuer: api-monitoring
+
+jwt:
+  secret: ${JWT_SECRET:7fbdc81f7e5a46b8a9f5258a9a6ec8da58be0e337a0cc8f5c19a43512e8c7f26}
+  expiration: 86400000
+
+rate-limit:
+  default: 100
+
+monitoring:
+  rateLimit:
+    default: 100
+
+logging:
+  level:
+    root: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    com.projectleap: DEBUG

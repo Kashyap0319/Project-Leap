@@ -12,5 +12,6 @@ data class LogRequest(
     @field:NotNull val latencyMs: Long,
     @field:NotNull val requestSize: Long,
     @field:NotNull val responseSize: Long,
+    val rateLimited: Boolean = false,
     val timestamp: Instant? = null
 )

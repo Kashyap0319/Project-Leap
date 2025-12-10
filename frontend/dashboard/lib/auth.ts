@@ -64,14 +64,20 @@ async function authenticate(path: string, body: Record<string, string>): Promise
   }
 }
 
-const AUTH_BASE_URL = "http://localhost:8080/auth";
+const AUTH_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+  ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/auth`
+  : "http://localhost:8080/auth";
 
 export const signup = async (username: string, email: string, password: string) => {
-  const response = await axios.post(`${AUTH_BASE_URL}/signup`, { username, email, password }, {
-    headers: {
-      "Content-Type": "application/json"
+  const response = await axios.post(
+    `${AUTH_BASE_URL}/signup`,
+    { username, email, password },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
     }
-  });
+  );
   if (response.data.token) {
     setSession(response.data.token, { email });
   }
@@ -79,25 +85,27 @@ export const signup = async (username: string, email: string, password: string) 
 };
 
 export const login = async (username: string, password: string) => {
-  // Backend expects username and password
   if (!username || !password) {
     throw new Error("Username and password are required");
   }
   try {
-    const response = await axios.post(`${AUTH_BASE_URL}/login`, { username: username.trim(), password: password.trim() }, {
-      headers: {
-        "Content-Type": "application/json"
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/login`,
+      { username: username.trim(), password: password.trim() },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
-    });
+    );
     if (response.data.token) {
       setSession(response.data.token, { email: username });
     }
     return response.data;
   } catch (error: any) {
-    // Better error handling for validation errors
     if (error.response?.data?.errors) {
       const errors = error.response.data.errors as Array<{ field: string; message: string }>;
-      const errorMessage = errors.map(e => e.message).join(", ");
+      const errorMessage = errors.map((e) => e.message).join(", ");
       throw new Error(errorMessage);
     }
     if (error.response?.data?.error) {

@@ -26,12 +26,12 @@ export default function LogsPage() {
   const [interval, setIntervalMs] = useState(15000);
   const [filters, setFilters] = useState({
     search: "",
-      endpoint: "",
+    endpoint: "",
     service: "",
     status: "",
     errorsOnly: false,
     slowOnly: false,
-      rateLimitedOnly: false,
+    rateLimitedOnly: false,
     range: "24h",
   });
 
@@ -134,7 +134,22 @@ export default function LogsPage() {
             <FilterChip active={filters.rateLimitedOnly} onClick={() => setFilters((f) => ({ ...f, rateLimitedOnly: !f.rateLimitedOnly }))}>
               Rate-limit hits
             </FilterChip>
-            <Button variant="outline" size="sm" onClick={() => setFilters({ search: "", service: "", status: "", errorsOnly: false, slowOnly: false, range: "24h" })}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setFilters({
+                  search: "",
+                  endpoint: "",
+                  service: "",
+                  status: "",
+                  errorsOnly: false,
+                  slowOnly: false,
+                  rateLimitedOnly: false,
+                  range: "24h",
+                })
+              }
+            >
               Clear
             </Button>
             <Button size="sm" onClick={load} disabled={loading}>

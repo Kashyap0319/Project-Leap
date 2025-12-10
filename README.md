@@ -17,6 +17,26 @@ A complete full-stack platform for tracking, monitoring, and analyzing API reque
 
 ---
 
+## 📸 Screenshots
+
+### Dashboard Overview
+![Dashboard](docs/screenshots/dashboard-overview.png)
+*Main dashboard showing KPIs, service metrics, success/error distribution, and top slow endpoints*
+
+### Services Analytics
+![Services Page](docs/screenshots/services-page.png)
+*Service-centric analytics with KPIs, latency trends, and endpoint performance metrics*
+
+### Live Traffic Logs
+![Logs Page](docs/screenshots/logs-page.png)
+*Real-time log stream with advanced filtering, search, and detailed request information*
+
+### Dashboard Metrics
+![Dashboard Metrics](docs/screenshots/dashboard-metrics.png)
+*Complete dashboard view with all widgets, charts, and real-time monitoring*
+
+---
+
 ## ✨ Features
 
 ### 🔐 Authentication & Security

@@ -11,7 +11,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 @Configuration
 class CorsConfig(
     private val rateLimitInterceptor: RateLimitInterceptor,
-    @Value("\${CORS_ALLOWED_ORIGINS:\${cors.allowed-origins:http://localhost:3000}}") private val allowedOrigins: String
+    @Value("\${CORS_ALLOWED_ORIGINS:\${cors.allowed-origins:http://localhost:3000,https://leapproject-a0trwsxd8-kashyap0319s-projects.vercel.app}}") private val allowedOrigins: String
 ) {
     @Bean
     fun corsConfigurer(): WebMvcConfigurer {

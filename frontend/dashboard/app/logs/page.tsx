@@ -17,6 +17,16 @@ import { toast } from "sonner";
 
 const statusOptions = ["2xx", "4xx", "5xx", "429"];
 const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_FILTERS = {
+  search: "",
+  endpoint: "",
+  service: "",
+  status: "",
+  errorsOnly: false,
+  slowOnly: false,
+  rateLimitedOnly: false,
+  range: "24h",
+};
 
 export default function LogsPage() {
   const [loading, setLoading] = useState(true);
@@ -24,16 +34,7 @@ export default function LogsPage() {
   const [page, setPage] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [interval, setIntervalMs] = useState(15000);
-  const [filters, setFilters] = useState({
-    search: "",
-    endpoint: "",
-    service: "",
-    status: "",
-    errorsOnly: false,
-    slowOnly: false,
-    rateLimitedOnly: false,
-    range: "24h",
-  });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   const load = async () => {
     setLoading(true);
@@ -134,22 +135,7 @@ export default function LogsPage() {
             <FilterChip active={filters.rateLimitedOnly} onClick={() => setFilters((f) => ({ ...f, rateLimitedOnly: !f.rateLimitedOnly }))}>
               Rate-limit hits
             </FilterChip>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setFilters({
-                  search: "",
-                  endpoint: "",
-                  service: "",
-                  status: "",
-                  errorsOnly: false,
-                  slowOnly: false,
-                  rateLimitedOnly: false,
-                  range: "24h",
-                })
-              }
-            >
+            <Button variant="outline" size="sm" onClick={() => setFilters(DEFAULT_FILTERS)}>
               Clear
             </Button>
             <Button size="sm" onClick={load} disabled={loading}>

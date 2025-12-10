@@ -1,0 +1,14 @@
+{
+  "buildCommand": "cd frontend/dashboard && npm install && npm run build",
+  "outputDirectory": "frontend/dashboard/.next",
+  "framework": "nextjs",
+  "installCommand": "cd frontend/dashboard && npm install",
+  "devCommand": "cd frontend/dashboard && npm run dev",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
+

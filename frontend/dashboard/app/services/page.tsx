@@ -185,13 +185,11 @@ function Sparkline({ points }: { points: Array<{ latencyMs: number }> }) {
   if (!points?.length) return <span className="w-12" />;
   const slice = safeArray(points).slice(-10);
   const max = Math.max(...safeArray(slice).map((p) => p.latencyMs), 1);
-  const path = slice
-    safeArray(slice).map((p, i) => {
-      const x = (i / Math.max(slice.length - 1, 1)) * 40;
-      const y = 16 - (p.latencyMs / max) * 16;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const path = safeArray(slice).map((p, i) => {
+    const x = (i / Math.max(slice.length - 1, 1)) * 40;
+    const y = 16 - (p.latencyMs / max) * 16;
+    return `${x},${y}`;
+  }).join(" ");
   return (
     <svg width="42" height="18" viewBox="0 0 42 18" className="text-primary">
       <polyline

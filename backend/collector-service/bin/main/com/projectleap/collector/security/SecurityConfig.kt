@@ -31,6 +31,8 @@ class SecurityConfig(
                 it.requestMatchers(
                     "/auth/signup",
                     "/auth/login",
+                    "/health",
+                    "/favicon.ico",
                     "/api/v1/auth/signup",
                     "/api/v1/auth/login"
                 ).permitAll()

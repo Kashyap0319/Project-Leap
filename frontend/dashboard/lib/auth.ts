@@ -72,19 +72,34 @@ const AUTH_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   : "http://localhost:8080/auth";
 
 export const signup = async (username: string, password: string, email?: string) => {
-  const response = await axios.post(
-    `${AUTH_BASE_URL}/signup`,
-    { username: username.trim(), password: password.trim() },
-    {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  );
-  if (response.data.token) {
-    setSession(response.data.token, { email: username });
+  if (!username || !password || !email) {
+    throw new Error("Username, email, and password are required");
   }
-  return response.data;
+  try {
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/signup`,
+      { username: username.trim(), email: email.trim(), password: password.trim() },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (response.data.token) {
+      setSession(response.data.token, { email: email.trim() });
+    }
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.data?.errors) {
+      const errors = error.response.data.errors as Array<{ field: string; message: string }>;
+      const errorMessage = errors.map((e) => e.message).join(", ");
+      throw new Error(errorMessage);
+    }
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw error;
+  }
 };
 
 export const login = async (username: string, password: string) => {

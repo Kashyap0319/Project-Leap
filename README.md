@@ -210,7 +210,6 @@ If using Atlas, set the URIs to your clusters; ensure the user has rights on bot
 ├─gradle/
 ├─gradlew
 ├─gradlew.bat
-├─vercel.json
 ├─.env.example
 └─README.md
 ```
@@ -224,3 +223,9 @@ If using Atlas, set the URIs to your clusters; ensure the user has rights on bot
 - Add background aggregation for `/api/services` to reduce query-time work.
 - Wire alert notifications to email/Slack.
 - Add synthetic load tests to validate 50+ concurrent ingest batches in CI.
+
+## Deploying to Render (Docker)
+- Use the provided `render.yaml` blueprint for a one-click setup. Steps: push this repo to GitHub, in Render choose New ➜ Blueprint, point to `render.yaml`, set secrets (`LOGS_MONGO_URI`, `META_MONGO_URI`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `NEXT_PUBLIC_API_BASE_URL`), and deploy.
+- Backend service: uses `backend/collector-service/Dockerfile`, listens on port `8080`, exposes `/health` for Render health checks, needs the Mongo URIs, `JWT_SECRET`, optional `LOG_LEVEL` and `JAVA_OPTS`, and comma-separated `CORS_ALLOWED_ORIGINS`.
+- Frontend service: uses `frontend/dashboard/Dockerfile`, listens on port `3000`, requires `NEXT_PUBLIC_API_BASE_URL=https://<backend-host>`. Render injects env vars during build so the Next.js bundle picks up the API URL.
+- After both services are live: hit `https://<backend>/health` (no auth) to confirm the collector is up, then run signup/login and a sample `/api/logs/batch` to verify end-to-end before sharing the dashboard URL.

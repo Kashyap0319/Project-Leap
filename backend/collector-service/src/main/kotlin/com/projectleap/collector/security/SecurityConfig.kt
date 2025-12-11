@@ -34,7 +34,8 @@ class SecurityConfig(
                     "/health",
                     "/favicon.ico",
                     "/api/v1/auth/signup",
-                    "/api/v1/auth/login"
+                    "/api/v1/auth/login",
+                    "/api/test/**" // Allow test data generation endpoints
                 ).permitAll()
                 .anyRequest().authenticated()
             }

@@ -93,9 +93,9 @@ export default function ServicesPage() {
       ) : service ? (
         <>
           <section className="grid gap-4 md:grid-cols-3">
-            <Metric label="Requests" value={service.requests} />
-            <Metric label="Avg latency" value={`${service.avgLatency.toFixed(1)} ms`} />
-            <Metric label="Error rate" value={`${(service.errorRate * 100).toFixed(2)}%`} badgeVariant={service.errorRate > 0.05 ? "destructive" : "success"} />
+            <Metric label="Requests" value={service.requests || 0} />
+            <Metric label="Avg latency" value={`${(service.avgLatency || 0).toFixed(1)} ms`} />
+            <Metric label="Error rate" value={`${((service.errorRate || 0) * 100).toFixed(2)}%`} badgeVariant={(service.errorRate || 0) > 0.05 ? "destructive" : "success"} />
           </section>
 
           <Card>
@@ -157,18 +157,26 @@ export default function ServicesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {safeArray(service.endpoints).map((ep: any) => (
-                    <TableRow key={`${ep.method}-${ep.path}`}>
-                      <TableCell className="font-medium">{ep.path}</TableCell>
-                      <TableCell>{ep.method}</TableCell>
-                      <TableCell>{ep.avgLatency.toFixed(1)} ms</TableCell>
-                      <TableCell>{ep.p95Latency ? `${ep.p95Latency.toFixed(1)} ms` : "-"}</TableCell>
-                      <TableCell>
-                        <Badge variant={ep.errorRate > 0.05 ? "destructive" : "success"}>{(ep.errorRate * 100).toFixed(2)}%</Badge>
+                  {safeArray(service.endpoints).length > 0 ? (
+                    safeArray(service.endpoints).map((ep: any) => (
+                      <TableRow key={`${ep.method}-${ep.path}`}>
+                        <TableCell className="font-medium">{ep.path || "-"}</TableCell>
+                        <TableCell>{ep.method || "GET"}</TableCell>
+                        <TableCell>{(ep.avgLatency || 0).toFixed(1)} ms</TableCell>
+                        <TableCell>{ep.p95Latency ? `${ep.p95Latency.toFixed(1)} ms` : "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant={(ep.errorRate || 0) > 0.05 ? "destructive" : "success"}>{((ep.errorRate || 0) * 100).toFixed(2)}%</Badge>
+                        </TableCell>
+                        <TableCell>{ep.requestCount || 0}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        No endpoint data available for this service
                       </TableCell>
-                      <TableCell>{ep.requestCount}</TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

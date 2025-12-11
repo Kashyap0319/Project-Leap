@@ -210,7 +210,7 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold">API Monitoring Made Smart</h1>
             {user && (
               <p className="text-sm text-muted-foreground">
-                Logged in as {user.fullName || user.email} · {user.email} · Location: {user.city || "Unknown"}, {user.country || "Unknown"} 🌍
+                Logged in as {user.fullName || user.email} · Location: India 🌍
               </p>
             )}
           </div>

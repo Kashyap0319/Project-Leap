@@ -29,14 +29,21 @@ class ServicesController(
             val avgLatency = if (count > 0) validEntries.mapNotNull { it.latencyMs }.average() else 0.0
             val errorRate = if (count > 0) validEntries.count { (it.statusCode ?: 0) >= 400 }.toDouble() / count else 0.0
             
-            // Calculate endpoint stats
-            val endpointStats = validEntries.groupBy { "${it.method} ${it.endpoint}" }
-                .map { (endpoint, endpointLogs) ->
+            // Calculate endpoint stats - group by endpoint path and method separately
+            val endpointStats = validEntries.groupBy { 
+                val ep = it.endpoint ?: ""
+                val m = it.method ?: "GET"
+                "$m|$ep" // Use separator to group by both method and endpoint
+            }
+                .map { (_, endpointLogs) ->
+                    val firstLog = endpointLogs.firstOrNull()
+                    val endpointPath = firstLog?.endpoint ?: ""
+                    val method = firstLog?.method ?: "GET"
                     val endpointLatencies = endpointLogs.mapNotNull { it.latencyMs }
                     val endpointErrors = endpointLogs.count { (it.statusCode ?: 0) >= 400 }
                     mapOf<String, Any>(
-                        "path" to endpoint,
-                        "method" to (endpointLogs.firstOrNull()?.method ?: "GET"),
+                        "path" to endpointPath,
+                        "method" to method,
                         "avgLatency" to if (endpointLatencies.isNotEmpty()) endpointLatencies.average() else 0.0,
                         "p95Latency" to calculateP95(endpointLatencies),
                         "errorRate" to if (endpointLogs.isNotEmpty()) endpointErrors.toDouble() / endpointLogs.size else 0.0,
@@ -44,7 +51,7 @@ class ServicesController(
                     )
                 }
                 .sortedByDescending { it["avgLatency"] as Double }
-                .take(5)
+                .take(10) // Show top 10 endpoints instead of 5
             
             // Generate latency trend (last 20 data points, sorted by timestamp)
             val latencyTrend = validEntries

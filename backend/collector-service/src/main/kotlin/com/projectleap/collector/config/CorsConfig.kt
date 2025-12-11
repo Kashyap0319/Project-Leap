@@ -4,6 +4,9 @@ import com.projectleap.collector.ratelimit.RateLimitInterceptor
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
@@ -11,8 +14,23 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 @Configuration
 class CorsConfig(
     private val rateLimitInterceptor: RateLimitInterceptor,
-    @Value("\${CORS_ALLOWED_ORIGINS:\${cors.allowed-origins:http://localhost:3000,https://leapproject-a0trwsxd8-kashyap0319s-projects.vercel.app}}") private val allowedOrigins: String
+    @Value("\${CORS_ALLOWED_ORIGINS:\${cors.allowed-origins:http://localhost:3000,https://leapproject.vercel.app}}") private val allowedOrigins: String
 ) {
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource {
+        val configuration = CorsConfiguration()
+        val origins = allowedOrigins.split(",").map { it.trim() }
+        configuration.allowedOrigins = origins
+        configuration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+        configuration.allowedHeaders = listOf("*")
+        configuration.allowCredentials = true
+        configuration.maxAge = 3600L
+        
+        val source = UrlBasedCorsConfigurationSource()
+        source.registerCorsConfiguration("/**", configuration)
+        return source
+    }
+
     @Bean
     fun corsConfigurer(): WebMvcConfigurer {
         return object : WebMvcConfigurer {

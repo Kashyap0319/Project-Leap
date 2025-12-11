@@ -24,6 +24,29 @@ services:
         sync: false
     plan: starter
 
+  # Orders Service - Self-Logging Microservice
+  - type: web
+    runtime: docker
+    name: orders-service
+    dockerfilePath: ./backend/orders-service/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: SERVER_PORT
+        value: 9000
+      - key: MONITORING_SERVICE_NAME
+        value: orders-service
+      - key: MONITORING_COLLECTOR_URL
+        sync: false
+      - key: MONITORING_RATE_LIMIT
+        value: "100"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: JAVA_OPTS
+        value: -Xmx512m -Xms256m
+    plan: starter
+
   # Frontend Next.js Service
   - type: web
     runtime: docker

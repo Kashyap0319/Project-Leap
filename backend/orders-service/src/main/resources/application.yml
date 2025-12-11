@@ -1,0 +1,18 @@
+server:
+  port: 9000
+
+monitoring:
+  serviceName: orders-service
+  collectorUrl: http://localhost:8080/api/logs
+  rateLimit:
+    limit: 100
+
+spring:
+  application:
+    name: orders-service
+
+logging:
+  level:
+    root: INFO
+    com.orders: DEBUG
+

@@ -38,11 +38,11 @@ async function authenticate(path: string, body: Record<string, string>): Promise
   const clean = Object.fromEntries(Object.entries(body).map(([k, v]) => [k, v.trim()])) as Record<string, string>;
   let payload: Record<string, string>;
   if (path === "/auth/signup") {
-    // Signup expects username, email, password
-    if (!clean.username || !clean.email || !clean.password) {
-      throw new Error("Username, email, and password are required");
+    // Signup expects username and password (email is collected but not sent)
+    if (!clean.username || !clean.password) {
+      throw new Error("Username and password are required");
     }
-    payload = { username: clean.username, email: clean.email, password: clean.password };
+    payload = { username: clean.username, password: clean.password };
   } else if (path === "/auth/login") {
     // Login expects username, password
     if (!clean.username || !clean.password) {
@@ -57,7 +57,10 @@ async function authenticate(path: string, body: Record<string, string>): Promise
     if (!data.token) {
       throw new Error("Token missing in response");
     }
-    setSession(data.token, data.user ? { email: data.user.email, name: data.user.fullName } : { email: clean.email });
+    setSession(
+      data.token,
+      data.user ? { email: data.user.email, name: data.user.fullName } : { email: clean.username }
+    );
     return data;
   } catch (err) {
     throw new Error(formatError(err));
@@ -68,10 +71,10 @@ const AUTH_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
   ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/auth`
   : "http://localhost:8080/auth";
 
-export const signup = async (username: string, email: string, password: string) => {
+export const signup = async (username: string, password: string, email?: string) => {
   const response = await axios.post(
     `${AUTH_BASE_URL}/signup`,
-    { username, email, password },
+    { username: username.trim(), password: password.trim() },
     {
       headers: {
         "Content-Type": "application/json",
@@ -79,7 +82,7 @@ export const signup = async (username: string, email: string, password: string) 
     }
   );
   if (response.data.token) {
-    setSession(response.data.token, { email });
+    setSession(response.data.token, { email: username });
   }
   return response.data;
 };

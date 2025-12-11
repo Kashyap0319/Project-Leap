@@ -32,7 +32,7 @@ export default function SignupPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await signup(values.username, values.email, values.password);
+      await signup(values.username, values.password, values.email);
       toast.success("Account created", { description: "Redirecting to dashboard" });
       // Use window.location for full page reload so middleware can read cookie
       setTimeout(() => {
